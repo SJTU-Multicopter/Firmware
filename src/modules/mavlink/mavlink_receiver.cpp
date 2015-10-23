@@ -123,6 +123,8 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_manual_pub(-1),
 	_land_detector_pub(-1),
 	_time_offset_pub(-1),
+	_sonar_distance_pub(nullptr),   //initialize publisher, by Clarence
+	_laser_distance_pub(nullptr),   //initialize publisher, by Clarence
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
 	_old_timestamp(0),
@@ -215,6 +217,14 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_TIMESYNC:
 		handle_message_timesync(msg);
 		break;
+
+	case MAVLINK_MSG_ID_SONAR_DISTANCE:
+	        handle_message_sonar_distance(msg);
+	        break; 
+
+	case MAVLINK_MSG_ID_LASER_DISTANCE:
+	        handle_message_laser_distance(msg);
+	        break; 
 
 	default:
 		break;
@@ -1642,6 +1652,51 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 	}
 }
 
+//the following function is added by Clarence
+void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
+{
+	mavlink_sonar_distance_t values;
+	mavlink_msg_sonar_distance_decode(msg, &values);
+
+	sonar_distance_s distance;
+	memset(&distance, 0, sizeof(distance));
+        //set values 
+	distance.sonar_front = values.sonar_front;
+	distance.sonar_behind = values.sonar_behind;
+	distance.sonar_left = values.sonar_left;
+	distance.sonar_right = values.sonar_right;
+	distance.sonar_up = values.sonar_up;
+	distance.sonar_down = values.sonar_down;
+	distance.sonar_cam = values.sonar_cam;
+        
+        //publish
+        if (_sonar_distance_pub == nullptr) {
+		_sonar_distance_pub = orb_advertise(ORB_ID(sonar_distance), &distance);
+	} else {
+		orb_publish(ORB_ID(sonar_distance), _sonar_distance_pub, &distance);
+	}
+}
+
+void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
+{
+	mavlink_laser_distance_t values;
+	mavlink_msg_laser_distance_decode(msg, &values);
+
+	laser_distance_s distance;
+	memset(&distance, 0, sizeof(distance));
+        //set values 
+	distance.min_distance = values.min_distance;
+	distance.angle = values.angle;
+	distance.laser_x = values.laser_x;
+	distance.laser_y = values.laser_y;
+        
+        //publish
+        if (_laser_distance_pub == nullptr) {
+		_laser_distance_pub = orb_advertise(ORB_ID(laser_distance), &distance);
+	} else {
+		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);
+	}
+}
 
 /**
  * Receive data from UART.

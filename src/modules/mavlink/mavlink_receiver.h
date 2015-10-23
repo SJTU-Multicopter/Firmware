@@ -73,6 +73,9 @@
 #include <uORB/topics/battery_status.h>
 #include <uORB/topics/vehicle_force_setpoint.h>
 #include <uORB/topics/time_offset.h>
+#include <uORB/topics/sonar_distance.h> //added by Clarence
+#include <uORB/topics/laser_distance.h> //added by Clarence
+
 
 #include "mavlink_ftp.h"
 
@@ -135,6 +138,8 @@ private:
 	void handle_message_hil_sensor(mavlink_message_t *msg);
 	void handle_message_hil_gps(mavlink_message_t *msg);
 	void handle_message_hil_state_quaternion(mavlink_message_t *msg);
+	void handle_message_sonar_distance(mavlink_message_t *msg);//for sonar, Clarence
+        void handle_message_laser_distance(mavlink_message_t *msg);//for laser, Clarence
 
 	void *receive_thread(void *arg);
 
@@ -191,6 +196,8 @@ private:
 	orb_advert_t _manual_pub;
 	orb_advert_t _land_detector_pub;
 	orb_advert_t _time_offset_pub;
+	orb_advert_t _sonar_distance_pub; //publisher for sonar
+        orb_advert_t _laser_distance_pub; //publisher for laser
 	int _control_mode_sub;
 	int _hil_frames;
 	uint64_t _old_timestamp;
