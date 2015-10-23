@@ -73,6 +73,8 @@
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
+#include <uORB/topics/sonar_distance.h>
+#include <uORB/topics/laser_distance.h>
 
 #include <systemlib/systemlib.h>
 #include <mathlib/mathlib.h>
@@ -87,6 +89,10 @@
 #define SIGMA			0.000001f
 #define MIN_DIST		0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
+#define Safe_distance                 120.0f
+#define sonar_P                            12.0f
+#define Laser_distance               150.0f
+#define Laser_P                            10.0f
 
 /**
  * Multicopter position control app start / stop handling function
@@ -133,6 +139,8 @@ private:
 	int		_pos_sp_triplet_sub;		/**< position setpoint triplet */
 	int		_local_pos_sp_sub;		/**< offboard local position setpoint */
 	int		_global_vel_sp_sub;		/**< offboard global velocity setpoint */
+	int		_sonar_sub;
+                            int		_laser_sub;
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
@@ -148,6 +156,8 @@ private:
 	struct position_setpoint_triplet_s		_pos_sp_triplet;	/**< vehicle global position setpoint triplet */
 	struct vehicle_local_position_setpoint_s	_local_pos_sp;		/**< vehicle local position setpoint */
 	struct vehicle_global_velocity_setpoint_s	_global_vel_sp;		/**< vehicle global velocity setpoint */
+                            struct sonar_distance_s	                                                        _sonar;
+                            struct laser_distance_s	                            _laser;
 
 	control::BlockParamFloat _manual_thr_min;
 	control::BlockParamFloat _manual_thr_max;
@@ -310,6 +320,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_local_pos_sub(-1),
 	_pos_sp_triplet_sub(-1),
 	_global_vel_sp_sub(-1),
+	_sonar_sub(-1),
+	_laser_sub(-1),
 
 /* publications */
 	_att_sp_pub(-1),
@@ -334,6 +346,8 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	memset(&_pos_sp_triplet, 0, sizeof(_pos_sp_triplet));
 	memset(&_local_pos_sp, 0, sizeof(_local_pos_sp));
 	memset(&_global_vel_sp, 0, sizeof(_global_vel_sp));
+	memset(&_sonar, 0, sizeof(_sonar));
+	memset(&_laser, 0, sizeof(_laser));
 
 	memset(&_ref_pos, 0, sizeof(_ref_pos));
 
@@ -524,6 +538,18 @@ MulticopterPositionControl::poll_subscriptions()
 
 	if (updated) {
 		orb_copy(ORB_ID(vehicle_local_position), _local_pos_sub, &_local_pos);
+	}
+
+	orb_check(_sonar_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(sonar_distance), _sonar_sub, &_sonar);
+	}
+
+	orb_check(_laser_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(laser_distance), _laser_sub, &_laser);
 	}
 }
 
@@ -876,7 +902,7 @@ void MulticopterPositionControl::control_auto(float dt)
 							pos_sp_s = prev_sp_s;
 						}
 
-						/* if copter is in front of curr waypoint, go directly to curr waypoint */
+						/* if copter is in sonar_front of curr waypoint, go directly to curr waypoint */
 						if ((pos_sp_s - curr_sp_s) * prev_curr_s > 0.0f) {
 							pos_sp_s = curr_sp_s;
 						}
@@ -930,6 +956,8 @@ MulticopterPositionControl::task_main()
 	_pos_sp_triplet_sub = orb_subscribe(ORB_ID(position_setpoint_triplet));
 	_local_pos_sp_sub = orb_subscribe(ORB_ID(vehicle_local_position_setpoint));
 	_global_vel_sp_sub = orb_subscribe(ORB_ID(vehicle_global_velocity_setpoint));
+	_sonar_sub = orb_subscribe(ORB_ID(sonar_distance));
+	_laser_sub = orb_subscribe(ORB_ID(laser_distance));
 
 
 	parameters_update(true);
@@ -1292,7 +1320,7 @@ MulticopterPositionControl::task_main()
 							/* desired body_x axis, orthogonal to body_z */
 							body_x = y_C % body_z;
 
-							/* keep nose to front while inverted upside down */
+							/* keep nose to sonar_front while inverted upside down */
 							if (body_z(2) < 0.0f) {
 								body_x = -body_x;
 							}
@@ -1428,6 +1456,94 @@ MulticopterPositionControl::task_main()
 				/* enforce minimum throttle if not landed */
 				if (!_vehicle_status.condition_landed) {
 					_att_sp.thrust = math::max(_att_sp.thrust, _manual_thr_min.get());
+				}
+			}
+
+			if(_manual.loiter_switch==3){
+				if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
+					if(_laser.angle<20.0f){
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<70.0f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<110.0f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = 0.0f;
+					}else if(_laser.angle<160.0f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else{
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}
+				
+					if(_att_sp.pitch_body > math::radians(20.0f)){
+						_att_sp.pitch_body  = math::radians(20.0f);
+					}
+					if(_att_sp.pitch_body < -math::radians(20.0f)){
+						_att_sp.pitch_body  = -math::radians(20.0f);
+					}
+
+				
+					if(_att_sp.roll_body > math::radians(20.0f)){
+						_att_sp.roll_body  = math::radians(20.0f);
+					}
+					if(_att_sp.roll_body < -math::radians(20.0f)){
+						_att_sp.roll_body  = -math::radians(20.0f);
+					}
+				}else{
+					if((_sonar.sonar_front>50.0f)&&(_sonar.sonar_front<Safe_distance)){
+						if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
+							_att_sp.pitch_body = math::radians(sonar_P/((_sonar.sonar_front - _sonar.sonar_behind)*(_sonar.sonar_front - _sonar.sonar_behind)/10000.0f+0.05f));
+						}else{
+							_att_sp.pitch_body = math::radians(sonar_P/(_sonar.sonar_front*_sonar.sonar_front/10000.0f+0.05f));
+						}
+				
+						if(_att_sp.pitch_body > math::radians(20.0f)){
+							_att_sp.pitch_body  = math::radians(20.0f);
+						}
+						if(_att_sp.pitch_body < -math::radians(20.0f)){
+							_att_sp.pitch_body  = -math::radians(20.0f);
+						}
+					}else{
+						if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
+							_att_sp.pitch_body = -math::radians(sonar_P/(_sonar.sonar_behind*_sonar.sonar_behind/10000.0f+0.05f));
+						}
+
+						if(_att_sp.pitch_body > math::radians(20.0f)){
+							_att_sp.pitch_body  = math::radians(20.0f);
+						}
+						if(_att_sp.pitch_body < -math::radians(20.0f)){
+							_att_sp.pitch_body  = -math::radians(20.0f);
+						}
+					}
+
+					if((_sonar.sonar_right>50.0f)&&(_sonar.sonar_right<Safe_distance)){
+						if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
+							_att_sp.roll_body = -math::radians(sonar_P/((_sonar.sonar_right - _sonar.sonar_left)*(_sonar.sonar_right - _sonar.sonar_left)/10000.0f+0.05f));
+						}else{
+							_att_sp.roll_body = -math::radians(sonar_P/(_sonar.sonar_right*_sonar.sonar_right/10000.0f+0.05f));
+						}
+
+						if(_att_sp.roll_body > math::radians(20.0f)){
+							_att_sp.roll_body  = math::radians(20.0f);
+						}
+						if(_att_sp.roll_body < -math::radians(20.0f)){
+							_att_sp.roll_body  = -math::radians(20.0f);
+						}
+					}else{
+						if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
+							_att_sp.roll_body = math::radians(sonar_P/(_sonar.sonar_left*_sonar.sonar_left/10000.0f+0.05f));
+						}
+
+						if(_att_sp.roll_body > math::radians(20.0f)){
+							_att_sp.roll_body  = math::radians(20.0f);
+						}
+						if(_att_sp.roll_body < -math::radians(20.0f)){
+							_att_sp.roll_body  = -math::radians(20.0f);
+						}
+					}
 				}
 			}
 
