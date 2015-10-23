@@ -248,16 +248,8 @@ ORB_DEFINE(time_offset, struct time_offset_s);
 #include "topics/mc_att_ctrl_status.h"
 ORB_DEFINE(mc_att_ctrl_status, struct mc_att_ctrl_status_s);
 
-<<<<<<< HEAD
 #include "topics/laser_distance.h"
 ORB_DEFINE(laser_distance, struct laser_distance_s);
 
 #include "topics/sonar_distance.h"
 ORB_DEFINE(sonar_distance, struct sonar_distance_s);
-=======
-#include "topics/sonar_distance.h"
-ORB_DEFINE(sonar_distance, struct sonar_distance_s);
-
-#include "topics/laser_distance.h"
-ORB_DEFINE(laser_distance, struct laser_distance_s);
->>>>>>> g-ch/stable
