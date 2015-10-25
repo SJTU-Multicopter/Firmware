@@ -197,7 +197,7 @@ private:
 	orb_advert_t _land_detector_pub;
 	orb_advert_t _time_offset_pub;
 	orb_advert_t _sonar_distance_pub; //publisher for sonar
-        orb_advert_t _laser_distance_pub; //publisher for laser
+	orb_advert_t _laser_distance_pub; //publisher for laser
 	int _control_mode_sub;
 	int _hil_frames;
 	uint64_t _old_timestamp;

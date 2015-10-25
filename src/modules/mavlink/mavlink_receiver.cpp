@@ -219,12 +219,12 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		break;
 
 	case MAVLINK_MSG_ID_SONAR_DISTANCE:
-	        handle_message_sonar_distance(msg);
-	        break; 
+		handle_message_sonar_distance(msg);
+	        	break; 
 
 	case MAVLINK_MSG_ID_LASER_DISTANCE:
-	        handle_message_laser_distance(msg);
-	        break; 
+	       	handle_message_laser_distance(msg);
+	      	break; 
 
 	default:
 		break;
@@ -1660,7 +1660,7 @@ void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
 
 	sonar_distance_s distance;
 	memset(&distance, 0, sizeof(distance));
-        //set values 
+        	//set values 
 	distance.sonar_front = values.sonar_front;
 	distance.sonar_behind = values.sonar_behind;
 	distance.sonar_left = values.sonar_left;
@@ -1670,7 +1670,7 @@ void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
 	distance.sonar_cam = values.sonar_cam;
         
         //publish
-        if (_sonar_distance_pub == -1) {
+        	if (_sonar_distance_pub == -1) {
 		_sonar_distance_pub = orb_advertise(ORB_ID(sonar_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(sonar_distance), _sonar_distance_pub, &distance);
@@ -1691,7 +1691,7 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 	distance.laser_y = values.laser_y;
         
         //publish
-        if (_laser_distance_pub == -1) {
+        	if (_laser_distance_pub == -1) {
 		_laser_distance_pub = orb_advertise(ORB_ID(laser_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);

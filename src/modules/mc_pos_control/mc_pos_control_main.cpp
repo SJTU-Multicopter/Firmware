@@ -1461,20 +1461,26 @@ MulticopterPositionControl::task_main()
 
 			if(_manual.loiter_switch==3){
 				if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
-					if(_laser.angle<20.0f){
+					if(_laser.angle<-22.5f){
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<22.5f){
 						_att_sp.pitch_body = 0.0f;
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<70.0f){
+					}else if(_laser.angle<67.5f){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<110.0f){
+					}else if(_laser.angle<112.5f){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = 0.0f;
-					}else if(_laser.angle<160.0f){
+					}else if(_laser.angle<157.5f){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else{
+					}else if(_laser.angle<202.5f){
 						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else{
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 				

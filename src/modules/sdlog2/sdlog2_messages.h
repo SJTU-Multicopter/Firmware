@@ -462,6 +462,25 @@ struct log_MACS_s {
 	float yaw_rate_integ;
 };
 
+#define LOG_SONA_MSG 46
+struct log_SONA_s {
+	float Front;
+	float Back;
+	float Left;
+	float Right;
+	float Up;
+	float Down;
+	float Cam;
+};
+
+#define LOG_LASE_MSG 47
+struct log_LASE_s {
+	float min_distance;
+	float angle;
+	float x;
+	float y;
+};
+
 /********** SYSTEM MESSAGES, ID > 0x80 **********/
 
 /* --- TIME - TIME STAMP --- */
@@ -532,6 +551,8 @@ static const struct log_format_s log_formats[] = {
 	LOG_FORMAT(ENCD, "qfqf",	"cnt0,vel0,cnt1,vel1"),
 	LOG_FORMAT(TSYN, "Q", 		"TimeOffset"),
 	LOG_FORMAT(MACS, "fff", "RRint,PRint,YRint"),
+	LOG_FORMAT(SONA, "fffffff", "Front,Back,Left,Right,Up,Down,Cam"),
+	LOG_FORMAT(LASE, "ffff", "Distance,Angle,X,Y"),
 
 	/* system-level messages, ID >= 0x80 */
 	/* FMT: don't write format of format message, it's useless */
