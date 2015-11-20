@@ -253,3 +253,6 @@ ORB_DEFINE(laser_distance, struct laser_distance_s);
 
 #include "topics/sonar_distance.h"
 ORB_DEFINE(sonar_distance, struct sonar_distance_s);
+
+#include "topics/test.h"
+ORB_DEFINE(test, struct test_s);

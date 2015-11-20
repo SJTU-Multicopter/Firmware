@@ -66,6 +66,7 @@
 #include <uORB/topics/vision_position_estimate.h>
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/optical_flow.h>
+#include <uORB/topics/test.h>
 #include <mavlink/mavlink_log.h>
 #include <poll.h>
 #include <systemlib/err.h>
@@ -328,6 +329,8 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	memset(&vision, 0, sizeof(vision));
 	struct vehicle_global_position_s global_pos;
 	memset(&global_pos, 0, sizeof(global_pos));
+	struct test_s test;
+	memset(&test, 0, sizeof(test));
 
 	/* subscribe */
 	int parameter_update_sub = orb_subscribe(ORB_ID(parameter_update));
@@ -343,6 +346,10 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	/* advertise */
 	orb_advert_t vehicle_local_position_pub = orb_advertise(ORB_ID(vehicle_local_position), &local_pos);
 	orb_advert_t vehicle_global_position_pub = -1;
+
+	//orb_advert_t vision_position_estimate_pub = orb_advertise(ORB_ID(vision_position_estimate), &vision);
+	orb_advert_t test_pub = orb_advertise(ORB_ID(test), &test);
+
 
 	struct position_estimator_inav_params params;
 	struct position_estimator_inav_param_handles pos_inav_param_handles;
@@ -699,6 +706,7 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 					}
 
 				}
+				
 			}
 
 			/* vehicle GPS position */
@@ -808,6 +816,16 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 				gps_updates++;
 			}
 		}
+
+		//orb_publish(ORB_ID(vision_position_estimate), vision_position_estimate_pub, &vision);
+		test.vision_x = vision.x;
+		test.vision_y = vision.y;
+		test.vision_vx = vision.vx;
+		test.vision_vy = vision.vy;
+		test.corr_vision_x = corr_vision[0][0];
+		test.corr_vision_y = corr_vision[1][0];
+		test.corr_vision_vx = corr_vision[0][1];
+		test.corr_vision_vy= corr_vision[1][1];
 
 		/* check for timeout on FLOW topic */
 		if ((flow_valid || sonar_valid) && t > flow.timestamp + flow_topic_timeout) {
@@ -1071,6 +1089,8 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			inertial_filter_correct(-x_est[1], dt, x_est, 1, params.w_xy_res_v);
 			inertial_filter_correct(-y_est[1], dt, y_est, 1, params.w_xy_res_v);
 		}
+		test.vision_valid=vision_valid;
+		orb_publish(ORB_ID(test), test_pub, &test);
 
 		if (verbose_mode) {
 			/* print updates rate */

@@ -481,6 +481,22 @@ struct log_LASE_s {
 	float y;
 };
 
+#define LOG_TEST_MSG 48
+struct log_TEST_s {
+	float local_x;
+	float local_y;
+	float local_vx;
+	float local_vy;
+	float vision_x;
+	float vision_y;
+	float vision_vx;
+	float vision_vy;
+	float corr_vision_x;
+	float corr_vision_y;
+	float corr_vision_vx;
+	float corr_vision_vy;
+};
+
 /********** SYSTEM MESSAGES, ID > 0x80 **********/
 
 /* --- TIME - TIME STAMP --- */
@@ -553,6 +569,7 @@ static const struct log_format_s log_formats[] = {
 	LOG_FORMAT(MACS, "fff", "RRint,PRint,YRint"),
 	LOG_FORMAT(SONA, "fffffff", "Front,Back,Left,Right,Up,Down,Cam"),
 	LOG_FORMAT(LASE, "ffff", "Distance,Angle,X,Y"),
+	LOG_FORMAT(TEST, "ffffffffffff", "L_x,L_y,L_vx,L_vy,V_x,V_y,V_vx,V_vy,C_x,C_y,C_vx,C_vy"),
 
 	/* system-level messages, ID >= 0x80 */
 	/* FMT: don't write format of format message, it's useless */

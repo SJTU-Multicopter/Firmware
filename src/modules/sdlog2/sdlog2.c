@@ -102,6 +102,7 @@
 #include <uORB/topics/mc_att_ctrl_status.h>
 #include <uORB/topics/sonar_distance.h>
 #include <uORB/topics/laser_distance.h>
+#include <uORB/topics/test.h>
 
 #include <systemlib/systemlib.h>
 #include <systemlib/param/param.h>
@@ -1122,6 +1123,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		struct mc_att_ctrl_status_s mc_att_ctrl_status;
 		struct laser_distance_s laser;
 		struct sonar_distance_s sonar;
+		struct test_s test;
 	} buf;
 
 	memset(&buf, 0, sizeof(buf));
@@ -1170,6 +1172,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 			struct log_MACS_s log_MACS;
 			struct log_SONA_s log_SONA;
 			struct log_LASE_s log_LASE;
+			struct log_TEST_s log_TEST;
 		} body;
 	} log_msg = {
 		LOG_PACKET_HEADER_INIT(0)
@@ -1214,6 +1217,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		int mc_att_ctrl_status_sub;
 		int laser_sub;
 		int sonar_sub;
+		int test_sub;
 	} subs;
 
 	subs.cmd_sub = -1;
@@ -1250,6 +1254,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 	subs.encoders_sub = -1;
 	subs.laser_sub = -1;
 	subs.sonar_sub = -1;
+	subs.test_sub = -1;
 
 	/* add new topics HERE */
 
@@ -1960,6 +1965,24 @@ int sdlog2_thread_main(int argc, char *argv[])
 			log_msg.body.log_SONA.Cam = buf.sonar.sonar_cam;
 			LOGBUFFER_WRITE_AND_COUNT(SONA);
 		}
+
+		if (copy_if_updated(ORB_ID(test), &subs.test_sub, &buf.test)) {
+			log_msg.msg_type = LOG_TEST_MSG;
+			log_msg.body.log_TEST.local_x = buf.test.local_x;
+			log_msg.body.log_TEST.local_y = buf.test.local_y;
+			log_msg.body.log_TEST.local_vx = buf.test.local_vx;
+			log_msg.body.log_TEST.local_vy = buf.test.local_vy;
+			log_msg.body.log_TEST.vision_x = buf.test.vision_x;
+			log_msg.body.log_TEST.vision_y = buf.test.vision_y;
+			log_msg.body.log_TEST.vision_vx = buf.test.vision_vx;
+			log_msg.body.log_TEST.vision_vy = buf.test.vision_vy;
+			log_msg.body.log_TEST.corr_vision_x = buf.test.corr_vision_x;
+			log_msg.body.log_TEST.corr_vision_y = buf.test.corr_vision_y;
+			log_msg.body.log_TEST.corr_vision_vx = buf.test.corr_vision_vx;
+			log_msg.body.log_TEST.corr_vision_vy = buf.test.corr_vision_vy;
+			LOGBUFFER_WRITE_AND_COUNT(TEST);
+		}
+
 
 		/* signal the other thread new data, but not yet unlock */
 		if (logbuffer_count(&lb) > MIN_BYTES_TO_WRITE) {
