@@ -90,6 +90,8 @@
 #define MIN_DIST		0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
 #define Safe_distance                 120.0f
+#define Safe_distance_z_1           400.0f
+#define Safe_distance_z_2           100.0f
 #define sonar_P                            12.0f
 #define Laser_distance               180.0f
 #define Laser_P                            10.0f
@@ -662,7 +664,7 @@ MulticopterPositionControl::control_manual(float dt)
 		_sp_move_rate(0) = _manual.x;
 		_sp_move_rate(1) = _manual.y;
 		if(_manual.loiter_switch==3){
-		if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
+		if((_laser.min_distance>50.0f)&&(_laser.min_distance<200.0f)){
 			if(_laser.angle<-22.5f){
 				if(_manual.x < 0.0f){
 					_sp_move_rate(0) = 0.0f;
@@ -732,8 +734,8 @@ MulticopterPositionControl::control_manual(float dt)
 				}
 			}		
 		}else{
-			if((_sonar.sonar_front>50.0f)&&(_sonar.sonar_front<Safe_distance)){
-				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
+			if((_sonar.sonar_front>50.0f)&&(_sonar.sonar_front<200.0f)){
+				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<200.0f)){
 					_sp_move_rate(0) = 0.0f;
 				}else{
 					if(_manual.x > 0.0f){
@@ -743,7 +745,7 @@ MulticopterPositionControl::control_manual(float dt)
 					}
 				}
 			}else{
-				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
+				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<200.0f)){
 					if(_manual.x < 0.0f){
 						_sp_move_rate(0) = 0.0f;
 					}else{
@@ -752,8 +754,8 @@ MulticopterPositionControl::control_manual(float dt)
 				}
 			}
 
-			if((_sonar.sonar_right>50.0f)&&(_sonar.sonar_right<Safe_distance)){
-				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
+			if((_sonar.sonar_right>50.0f)&&(_sonar.sonar_right<200.0f)){
+				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<200.0f)){
 					_sp_move_rate(1) = 0.0f;
 				}else{
 					if(_manual.y > 0.0f){
@@ -763,7 +765,7 @@ MulticopterPositionControl::control_manual(float dt)
 					}
 				}
 			}else{
-				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
+				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<200.0f)){
 					if(_manual.y < 0.0f){
 						_sp_move_rate(1) = 0.0f;
 					}else{	
@@ -1571,7 +1573,7 @@ MulticopterPositionControl::task_main()
 				}
 			}
 
-			if(_manual.loiter_switch==3 && !_control_mode.flag_control_position_enabled){
+			if(_manual.loiter_switch==3){
 				if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
 					if(_laser.angle<-22.5f){
 						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
