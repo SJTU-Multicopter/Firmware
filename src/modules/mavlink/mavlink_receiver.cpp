@@ -125,6 +125,9 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_time_offset_pub(-1),
 	_sonar_distance_pub(-1),   //initialize publisher, by Clarence
 	_laser_distance_pub(-1),   //initialize publisher, by Clarence
+	_field_size_pub(-1),   //initialize publisher, by Clarence
+	_field_size_confirm_pub(-1),   //initialize publisher, by Clarence
+	_pump_controller_pub(-1),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
 	_old_timestamp(0),
@@ -225,6 +228,16 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_LASER_DISTANCE:
 	       	handle_message_laser_distance(msg);
 	      	break; 
+	case MAVLINK_MSG_ID_FIELD_SIZE:
+	        handle_message_field_size(msg);
+	        break; 
+	case MAVLINK_MSG_ID_FIELD_SIZE_CONFIRM:
+	        handle_message_field_size_confirm(msg);
+	        break; 
+	case MAVLINK_MSG_ID_PUMP_CONTROLLER:
+	        handle_message_pump_controller(msg);
+	        break; 
+
 
 	default:
 		break;
@@ -1697,6 +1710,73 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);
 	}
 }
+
+void MavlinkReceiver::handle_message_pump_controller(mavlink_message_t *msg)
+{
+	mavlink_pump_controller_t pump;
+	mavlink_msg_pump_controller_decode(msg, &pump);
+
+	struct pump_controller_s p;
+	memset(&p, 0, sizeof(p));
+
+	p.pump_speed_sp = pump.pump_speed_sp;
+	p.sprayer_speed_sp = pump.spray_speed_sp;
+
+	if (_pump_controller_pub == -1)
+		_pump_controller_pub = orb_advertise(ORB_ID(pump_controller), &p);
+	else
+		orb_publish(ORB_ID(pump_controller), _pump_controller_pub, &p);
+}
+
+void MavlinkReceiver::handle_message_field_size(mavlink_message_t *msg)
+{
+	mavlink_field_size_t values;
+	mavlink_msg_field_size_decode(msg, &values);
+
+	field_size_s size;
+	memset(&size, 0, sizeof(size));
+         
+        //hrt_abstime current_time = hrt_absolute_time();//for signal testing
+
+        //set values  
+        size.length = values.length;
+	size.width = values.width;
+	size.height = values.height;
+	size.times = values.times;
+        
+        //publish
+        if (_field_size_pub == -1) {
+		_field_size_pub = orb_advertise(ORB_ID(field_size), &size);
+	} else {
+		orb_publish(ORB_ID(field_size), _field_size_pub, &size);
+	}
+}
+
+void MavlinkReceiver::handle_message_field_size_confirm(mavlink_message_t *msg)
+{
+	mavlink_field_size_confirm_t values;
+	mavlink_msg_field_size_confirm_decode(msg, &values);
+
+	field_size_confirm_s size;
+	memset(&size, 0, sizeof(size));
+         
+        //hrt_abstime current_time = hrt_absolute_time();//for signal testing
+
+        //set values  
+        size.length = values.length;
+	size.width = values.width;
+	size.height = values.height;
+	size.times = values.times;
+	size.confirm = values.confirm;
+        
+        //publish
+        if (_field_size_confirm_pub == -1) {
+		_field_size_confirm_pub = orb_advertise(ORB_ID(field_size_confirm), &size);
+	} else {
+		orb_publish(ORB_ID(field_size_confirm), _field_size_confirm_pub, &size);
+	}
+}
+
 
 /**
  * Receive data from UART.

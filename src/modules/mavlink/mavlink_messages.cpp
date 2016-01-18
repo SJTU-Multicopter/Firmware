@@ -69,6 +69,9 @@
 #include <uORB/topics/navigation_capabilities.h>
 #include <uORB/topics/sonar_distance.h> //for sonar, by Clarence
 #include <uORB/topics/laser_distance.h> //for laser, by Clarence
+#include <uORB/topics/field_size.h> //for field_size, by Clarence
+#include <uORB/topics/field_size_confirm.h> //for field_size, by Clarence
+#include <uORB/topics/pump_status.h>//for field_size, by Clarence
 #include <drivers/drv_rc_input.h>
 #include <drivers/drv_pwm_output.h>
 #include <drivers/drv_range_finder.h>
@@ -2381,8 +2384,174 @@ protected:
         }
          
 };
+class MavlinkStreamFieldSize : public MavlinkStream
+{
+public:
+        
+        const char *get_name() const
+	{
+		return MavlinkStreamFieldSize::get_name_static();
+	}
 
+	static const char *get_name_static()
+	{
+		return "FIELD_SIZE";
+	}
 
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_FIELD_SIZE;
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_FIELD_SIZE_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+        static MavlinkStream *new_instance(Mavlink *mavlink)
+           { return new MavlinkStreamFieldSize(mavlink); }
+ 
+private:
+        MavlinkOrbSubscription *_field_size_sub;
+
+	MavlinkStreamFieldSize(MavlinkStreamFieldSize &);
+	MavlinkStreamFieldSize & operator = (const MavlinkStreamFieldSize &);
+ 
+protected:
+        explicit MavlinkStreamFieldSize(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_field_size_sub(_mavlink->add_orb_subscription(ORB_ID(field_size)))
+	{}
+
+        void send(const hrt_abstime t)
+        {
+                struct field_size_s values;
+                if (_field_size_sub->update(&values)) {
+
+                  mavlink_field_size_t msg;
+                  msg.length = values.length;
+                  msg.width = values.width;
+                  msg.height = values.height;
+                  msg.times = values.times;
+                  
+                  _mavlink->send_message(MAVLINK_MSG_ID_FIELD_SIZE, &msg);
+
+                }
+            
+        }
+         
+};
+
+class MavlinkStreamFieldSizeConfirm : public MavlinkStream
+{
+public:
+        
+        const char *get_name() const
+	{
+		return MavlinkStreamFieldSizeConfirm::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "FIELD_SIZE_CONFIRM";
+	}
+
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_FIELD_SIZE_CONFIRM;
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_FIELD_SIZE_CONFIRM_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+        static MavlinkStream *new_instance(Mavlink *mavlink)
+           { return new MavlinkStreamFieldSizeConfirm(mavlink); }
+ 
+private:
+        MavlinkOrbSubscription *_field_size_confirm_sub;
+
+	MavlinkStreamFieldSizeConfirm(MavlinkStreamFieldSizeConfirm &);
+	MavlinkStreamFieldSizeConfirm & operator = (const MavlinkStreamFieldSizeConfirm &);
+ 
+protected:
+        explicit MavlinkStreamFieldSizeConfirm(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_field_size_confirm_sub(_mavlink->add_orb_subscription(ORB_ID(field_size_confirm)))
+	{}
+
+        void send(const hrt_abstime t)
+        {
+                struct field_size_confirm_s values;
+                if (_field_size_confirm_sub->update(&values)) {
+
+                  mavlink_field_size_confirm_t msg;
+                  msg.length = values.length;
+                  msg.width = values.width;
+                  msg.height = values.height;
+                  msg.times = values.times;
+                  msg.confirm = values.confirm;
+                  
+                  _mavlink->send_message(MAVLINK_MSG_ID_FIELD_SIZE_CONFIRM, &msg);
+
+                }
+            
+        }
+         
+};
+class MavlinkStreamPumpStatus : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamPumpStatus::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "PUMP_STATUS";
+	}
+
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_PUMP_STATUS;
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamPumpStatus(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_PUMP_STATUS_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+private:
+	MavlinkOrbSubscription *_pump_status_sub;
+
+	/* do not allow top copying this class */
+	MavlinkStreamPumpStatus(MavlinkStreamPumpStatus &);
+	MavlinkStreamPumpStatus& operator = (const MavlinkStreamPumpStatus &);
+
+protected:
+	explicit MavlinkStreamPumpStatus(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_pump_status_sub(_mavlink->add_orb_subscription(ORB_ID(pump_status)))
+	{}
+
+	void send(const hrt_abstime t)
+	{
+		struct pump_status_s status;
+		bool updated = _pump_status_sub->update(&status);
+
+		if(updated) {
+			mavlink_pump_status_t  msg;
+
+			msg.pump_speed = status.pump_speed;
+			msg.spray_speed = status.sprayer_speed;
+
+			_mavlink->send_message(MAVLINK_MSG_ID_PUMP_STATUS, &msg);
+		}		
+	} 
+};
 const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static),
 	new StreamListItem(&MavlinkStreamStatustext::new_instance, &MavlinkStreamStatustext::get_name_static),
@@ -2419,5 +2588,8 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamDistanceSensor::new_instance, &MavlinkStreamDistanceSensor::get_name_static),
 	new StreamListItem(&MavlinkStreamSonarDistance::new_instance, &MavlinkStreamSonarDistance::get_name_static),
 	new StreamListItem(&MavlinkStreamLaserDistance::new_instance, &MavlinkStreamLaserDistance::get_name_static),
+	new StreamListItem(&MavlinkStreamFieldSize::new_instance, &MavlinkStreamFieldSize::get_name_static),
+	new StreamListItem(&MavlinkStreamFieldSizeConfirm::new_instance, &MavlinkStreamFieldSizeConfirm::get_name_static),
+	new StreamListItem(&MavlinkStreamPumpStatus::new_instance, &MavlinkStreamPumpStatus::get_name_static),
 	nullptr
 };

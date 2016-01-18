@@ -254,5 +254,17 @@ ORB_DEFINE(laser_distance, struct laser_distance_s);
 #include "topics/sonar_distance.h"
 ORB_DEFINE(sonar_distance, struct sonar_distance_s);
 
+#include "topics/field_size.h"
+ORB_DEFINE(field_size, struct field_size_s);
+
+#include "topics/field_size_confirm.h"
+ORB_DEFINE(field_size_confirm, struct field_size_confirm_s);
+
+#include "topics/pump_controller.h"
+ORB_DEFINE(pump_controller, struct pump_controller_s);
+
+#include "topics/pump_status.h"
+ORB_DEFINE(pump_status, struct pump_status_s);
+
 #include "topics/test.h"
 ORB_DEFINE(test, struct test_s);
