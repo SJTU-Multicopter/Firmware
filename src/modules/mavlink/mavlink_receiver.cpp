@@ -237,8 +237,6 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_PUMP_CONTROLLER:
 	        handle_message_pump_controller(msg);
 	        break; 
-
-
 	default:
 		break;
 	}
@@ -1723,9 +1721,13 @@ void MavlinkReceiver::handle_message_pump_controller(mavlink_message_t *msg)
 	p.sprayer_speed_sp = pump.spray_speed_sp;
 
 	if (_pump_controller_pub == -1)
+	{
 		_pump_controller_pub = orb_advertise(ORB_ID(pump_controller), &p);
+	}
 	else
+	{
 		orb_publish(ORB_ID(pump_controller), _pump_controller_pub, &p);
+	}
 }
 
 void MavlinkReceiver::handle_message_field_size(mavlink_message_t *msg)

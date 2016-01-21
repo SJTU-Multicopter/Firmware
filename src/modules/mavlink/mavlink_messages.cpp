@@ -71,7 +71,8 @@
 #include <uORB/topics/laser_distance.h> //for laser, by Clarence
 #include <uORB/topics/field_size.h> //for field_size, by Clarence
 #include <uORB/topics/field_size_confirm.h> //for field_size, by Clarence
-#include <uORB/topics/pump_status.h>//for field_size, by Clarence
+#include <uORB/topics/pump_status.h>
+#include <uORB/topics/pump_controller.h>
 #include <drivers/drv_rc_input.h>
 #include <drivers/drv_pwm_output.h>
 #include <drivers/drv_range_finder.h>
@@ -2537,9 +2538,14 @@ protected:
 		_pump_status_sub(_mavlink->add_orb_subscription(ORB_ID(pump_status)))
 	{}
 
+	/*explicit MavlinkStreamPumpStatus(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_pump_status_sub(_mavlink->add_orb_subscription(ORB_ID(pump_controller)))
+	{}
+*/
 	void send(const hrt_abstime t)
 	{
 		struct pump_status_s status;
+//		struct pump_controller_s status;
 		bool updated = _pump_status_sub->update(&status);
 
 		if(updated) {

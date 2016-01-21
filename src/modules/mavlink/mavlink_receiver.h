@@ -140,10 +140,10 @@ private:
 	void handle_message_hil_gps(mavlink_message_t *msg);
 	void handle_message_hil_state_quaternion(mavlink_message_t *msg);
 	void handle_message_sonar_distance(mavlink_message_t *msg);//for sonar, Clarence
-    void handle_message_laser_distance(mavlink_message_t *msg);//for laser, Clarence
-    void handle_message_field_size(mavlink_message_t *msg);//for field, Clarence
-    void handle_message_field_size_confirm(mavlink_message_t *msg);//for field, Clarence
-    void handle_message_pump_controller(mavlink_message_t *msg);
+	void handle_message_laser_distance(mavlink_message_t *msg);//for laser, Clarence
+	void handle_message_field_size(mavlink_message_t *msg);//for field, Clarence
+	void handle_message_field_size_confirm(mavlink_message_t *msg);//for field, Clarence
+	void handle_message_pump_controller(mavlink_message_t *msg);
 	void *receive_thread(void *arg);
 
 	/**
@@ -202,8 +202,8 @@ private:
 	orb_advert_t _sonar_distance_pub; //publisher for sonar
 	orb_advert_t _laser_distance_pub; //publisher for laser
 	orb_advert_t _field_size_pub; //publisher for field Clarence
-    orb_advert_t _field_size_confirm_pub; //publisher for field Clarence
-    orb_advert_t _pump_controller_pub;
+	orb_advert_t _field_size_confirm_pub; //publisher for field Clarence
+	orb_advert_t _pump_controller_pub;
 	int _control_mode_sub;
 	int _hil_frames;
 	uint64_t _old_timestamp;

@@ -2044,7 +2044,7 @@ Sensors::rc_poll()
 
 			if(vehicle_status.nav_state == vehicle_status.NAVIGATION_STATE_OFFBOARD){
 				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy) ;
-				manual.aux2 = vel / 3.0f * (pump_control.pump_speed_sp + 1.0f) -1.0f ;
+				manual.aux2 = vel / 3.0f * (pump_control.sprayer_speed_sp + 1.0f) -1.0f ;
 				if (manual.aux2 > 1.0f)
 				{
 					manual.aux2 = 1.0f;
@@ -2055,7 +2055,9 @@ Sensors::rc_poll()
 				}
 			}else{
 				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy);
-				manual.aux2 = vel / 3.0f * (manual.aux2 + 1.0f) -1.0f ;
+//				float vel_perc = vel / 3.0f;
+				manual.aux2 = (vel / 6.0f + 0.5f) * (manual.aux2 + 1.0f) -1.0f ;
+//				manual.aux2 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_2, -1.0, vel_perc);
 				if (manual.aux2 > 1.0f)
 				{
 					manual.aux2 = 1.0f;
