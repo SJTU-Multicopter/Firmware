@@ -73,8 +73,9 @@
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
-#include <uORB/topics/sonar_distance.h>
-#include <uORB/topics/laser_distance.h>
+#include <uORB/topics/sonar_distance.h> //add by CJ
+#include <uORB/topics/laser_distance.h> //add by CJ
+#include <uORB/topics/extra_function.h> //add by CJ
 
 #include <systemlib/systemlib.h>
 #include <mathlib/mathlib.h>
@@ -85,16 +86,16 @@
 #include <controllib/blocks.hpp>
 #include <controllib/block/BlockParam.hpp>
 
-#define TILT_COS_MAX	0.7f
-#define SIGMA			0.000001f
-#define MIN_DIST		0.01f
-#define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
-#define Safe_distance                 120.0f
-#define Safe_distance_z_1           400.0f
-#define Safe_distance_z_2           100.0f
-#define sonar_P                            12.0f
-#define Laser_distance               180.0f
-#define Laser_P                            10.0f
+#define TILT_COS_MAX				0.7f
+#define SIGMA					0.000001f
+#define MIN_DIST				0.01f
+#define MANUAL_THROTTLE_MAX_MULTICOPTER		0.9f
+#define Safe_distance                		120.0f
+#define Safe_distance_z_1           		400.0f
+#define Safe_distance_z_2          		100.0f
+#define sonar_P                            	12.0f
+#define Laser_distance              	   	200.0f       //laser safe distance
+#define Laser_P                            	10.0f  //parameter P of laser obstacle avoidance
 
 /**
  * Multicopter position control app start / stop handling function
@@ -142,7 +143,8 @@ private:
 	int		_local_pos_sp_sub;		/**< offboard local position setpoint */
 	int		_global_vel_sp_sub;		/**< offboard global velocity setpoint */
 	int		_sonar_sub;
-                            int		_laser_sub;
+        int		_laser_sub;
+        int 		_extra_function_sub;
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
@@ -158,8 +160,9 @@ private:
 	struct position_setpoint_triplet_s		_pos_sp_triplet;	/**< vehicle global position setpoint triplet */
 	struct vehicle_local_position_setpoint_s	_local_pos_sp;		/**< vehicle local position setpoint */
 	struct vehicle_global_velocity_setpoint_s	_global_vel_sp;		/**< vehicle global velocity setpoint */
-                            struct sonar_distance_s	                                                        _sonar;
-                            struct laser_distance_s	                            _laser;
+        struct sonar_distance_s	                        _sonar;
+        struct laser_distance_s	                        _laser;
+        struct extra_function_s 			_extra_function;        //add by CJ
 
 	control::BlockParamFloat _manual_thr_min;
 	control::BlockParamFloat _manual_thr_max;
@@ -324,6 +327,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_global_vel_sp_sub(-1),
 	_sonar_sub(-1),
 	_laser_sub(-1),
+	_extra_function_sub(-1),
 
 /* publications */
 	_att_sp_pub(-1),
@@ -350,6 +354,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	memset(&_global_vel_sp, 0, sizeof(_global_vel_sp));
 	memset(&_sonar, 0, sizeof(_sonar));
 	memset(&_laser, 0, sizeof(_laser));
+	memset(&_extra_function, 0, sizeof(_extra_function));
 
 	memset(&_ref_pos, 0, sizeof(_ref_pos));
 
@@ -553,6 +558,12 @@ MulticopterPositionControl::poll_subscriptions()
 	if (updated) {
 		orb_copy(ORB_ID(laser_distance), _laser_sub, &_laser);
 	}
+
+	orb_check(_extra_function_sub, &updated);
+
+	if (updated) {
+		orb_copy(ORB_ID(extra_function), _extra_function_sub, &_extra_function);
+	}
 }
 
 float
@@ -663,115 +674,92 @@ MulticopterPositionControl::control_manual(float dt)
 		/* move position setpoint with roll/pitch stick */
 		_sp_move_rate(0) = _manual.x;
 		_sp_move_rate(1) = _manual.y;
-		if(_manual.loiter_switch==3){
-		if((_laser.min_distance>50.0f)&&(_laser.min_distance<200.0f)){
-			if(_laser.angle<-22.5f){
-				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = 0.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}else if(_laser.angle<22.5f){
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = 0.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}else if(_laser.angle<67.5f){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = 0.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}else if(_laser.angle<112.5f){
-				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					if(_manual.x > 0.0f){
-						_sp_move_rate(0) = 0.0f;
-					}else{
-						_sp_move_rate(0) = _manual.x;
-					}
-				}
-			}else if(_laser.angle<157.5f){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
 
-				if(_manual.y < 0.0f){
+		if(_extra_function.obs_avoid_enable !=  0){
+
+		if((_laser.min_distance>90.0f)&&(_laser.min_distance<250.0f)){
+			if(_laser.angle >= 0.0f && _laser.angle < 22.5f ){
+				if(_manual.y > 0.0f){
 					_sp_move_rate(1) = 0.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
-				}
-			}else if(_laser.angle<202.5f){
-				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = 0.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}else{
-				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = 0.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}		
-		}else{
-			if((_sonar.sonar_front>50.0f)&&(_sonar.sonar_front<200.0f)){
-				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<200.0f)){
-					_sp_move_rate(0) = 0.0f;
-				}else{
-					if(_manual.x > 0.0f){
-						_sp_move_rate(0) = 0.0f;
-					}else{
-						_sp_move_rate(0) = _manual.x;
-					}
-				}
-			}else{
-				if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<200.0f)){
-					if(_manual.x < 0.0f){
-						_sp_move_rate(0) = 0.0f;
-					}else{
-						_sp_move_rate(0) = _manual.x;
-					}
 				}
 			}
-
-			if((_sonar.sonar_right>50.0f)&&(_sonar.sonar_right<200.0f)){
-				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<200.0f)){
+			if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
+				if(_manual.x > 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+				if(_manual.y > 0.0f){
 					_sp_move_rate(1) = 0.0f;
 				}else{
-					if(_manual.y > 0.0f){
-						_sp_move_rate(1) = 0.0f;
-					}else{	
-						_sp_move_rate(1) = _manual.y;
-					}
+					_sp_move_rate(1) = _manual.y;
 				}
-			}else{
-				if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<200.0f)){
-					if(_manual.y < 0.0f){
-						_sp_move_rate(1) = 0.0f;
-					}else{	
-						_sp_move_rate(1) = _manual.y;
-					}
-				}	
+			}
+			if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
+				if(_manual.x > 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+			}
+			if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
+				if(_manual.x > 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+				if(_manual.y < 0.0f){
+					_sp_move_rate(1) = 0.0f;
+				}else{
+					_sp_move_rate(1) = _manual.y;
+				}
+			}
+			if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
+				if(_manual.y < 0.0f){
+					_sp_move_rate(1) = 0.0f;
+				}else{
+					_sp_move_rate(1) = _manual.y;
+				}
+			}
+			if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
+				if(_manual.x < 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+				if(_manual.y < 0.0f){
+					_sp_move_rate(1) = 0.0f;
+				}else{
+					_sp_move_rate(1) = _manual.y;
+				}
+			}
+			if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
+				if(_manual.x < 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+			}
+			if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
+				if(_manual.x < 0.0f){
+					_sp_move_rate(0) = 0.0f;
+				}else{
+					_sp_move_rate(0) = _manual.x;
+				}
+				if(_manual.y > 0.0f){
+					_sp_move_rate(1) = 0.0f;
+				}else{
+					_sp_move_rate(1) = _manual.y;
+				}
+			}
+			if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
+				if(_manual.y > 0.0f){
+					_sp_move_rate(1) = 0.0f;
+				}else{
+					_sp_move_rate(1) = _manual.y;
+				}
 			}
 		}
 		}	
@@ -1573,31 +1561,45 @@ MulticopterPositionControl::task_main()
 				}
 			}
 
-			if(_manual.loiter_switch==3){
-				if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
-					if(_laser.angle<-22.5f){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<22.5f){
+			if(_extra_function.obs_avoid_enable != 0){
+				if((_laser.min_distance>90.0f)&&(_laser.min_distance<Laser_distance)){
+					if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
 						_att_sp.pitch_body = 0.0f;
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<67.5f){
+					}
+					if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<112.5f){
+					}
+					if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = 0.0f;
-					}else if(_laser.angle<157.5f){
+					}
+					if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else if(_laser.angle<202.5f){
+					}
+					if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
 						_att_sp.pitch_body = 0.0f;
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}else{
+					}
+					if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
 						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
-				
+					if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = 0.0f;
+					}
+					if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}
+					if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}
+
 					if(_att_sp.pitch_body > math::radians(20.0f)){
 						_att_sp.pitch_body  = math::radians(20.0f);
 					}
@@ -1605,64 +1607,11 @@ MulticopterPositionControl::task_main()
 						_att_sp.pitch_body  = -math::radians(20.0f);
 					}
 
-				
 					if(_att_sp.roll_body > math::radians(20.0f)){
 						_att_sp.roll_body  = math::radians(20.0f);
 					}
 					if(_att_sp.roll_body < -math::radians(20.0f)){
 						_att_sp.roll_body  = -math::radians(20.0f);
-					}
-				}else{
-					if((_sonar.sonar_front>50.0f)&&(_sonar.sonar_front<Safe_distance)){
-						if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
-							_att_sp.pitch_body = math::radians(sonar_P/((_sonar.sonar_front - _sonar.sonar_behind)*(_sonar.sonar_front - _sonar.sonar_behind)/10000.0f+0.05f));
-						}else{
-							_att_sp.pitch_body = math::radians(sonar_P/(_sonar.sonar_front*_sonar.sonar_front/10000.0f+0.05f));
-						}
-				
-						if(_att_sp.pitch_body > math::radians(20.0f)){
-							_att_sp.pitch_body  = math::radians(20.0f);
-						}
-						if(_att_sp.pitch_body < -math::radians(20.0f)){
-							_att_sp.pitch_body  = -math::radians(20.0f);
-						}
-					}else{
-						if((_sonar.sonar_behind>50.0f)&&(_sonar.sonar_behind<Safe_distance)){
-							_att_sp.pitch_body = -math::radians(sonar_P/(_sonar.sonar_behind*_sonar.sonar_behind/10000.0f+0.05f));
-						}
-
-						if(_att_sp.pitch_body > math::radians(20.0f)){
-							_att_sp.pitch_body  = math::radians(20.0f);
-						}
-						if(_att_sp.pitch_body < -math::radians(20.0f)){
-							_att_sp.pitch_body  = -math::radians(20.0f);
-						}
-					}
-
-					if((_sonar.sonar_right>50.0f)&&(_sonar.sonar_right<Safe_distance)){
-						if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
-							_att_sp.roll_body = -math::radians(sonar_P/((_sonar.sonar_right - _sonar.sonar_left)*(_sonar.sonar_right - _sonar.sonar_left)/10000.0f+0.05f));
-						}else{
-							_att_sp.roll_body = -math::radians(sonar_P/(_sonar.sonar_right*_sonar.sonar_right/10000.0f+0.05f));
-						}
-
-						if(_att_sp.roll_body > math::radians(20.0f)){
-							_att_sp.roll_body  = math::radians(20.0f);
-						}
-						if(_att_sp.roll_body < -math::radians(20.0f)){
-							_att_sp.roll_body  = -math::radians(20.0f);
-						}
-					}else{
-						if((_sonar.sonar_left>50.0f)&&(_sonar.sonar_left<Safe_distance)){
-							_att_sp.roll_body = math::radians(sonar_P/(_sonar.sonar_left*_sonar.sonar_left/10000.0f+0.05f));
-						}
-
-						if(_att_sp.roll_body > math::radians(20.0f)){
-							_att_sp.roll_body  = math::radians(20.0f);
-						}
-						if(_att_sp.roll_body < -math::radians(20.0f)){
-							_att_sp.roll_body  = -math::radians(20.0f);
-						}
 					}
 				}
 			}

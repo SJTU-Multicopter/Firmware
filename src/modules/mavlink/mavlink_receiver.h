@@ -78,6 +78,7 @@
 #include <uORB/topics/field_size.h> //added by Clarence
 #include <uORB/topics/field_size_confirm.h> //added by Clarence
 #include <uORB/topics/pump_controller.h>
+#include <uORB/topics/extra_function.h>  //add by CJ
 #include "mavlink_ftp.h"
 
 #define PX4_EPOCH_SECS 1234567890ULL
@@ -144,6 +145,7 @@ private:
 	void handle_message_field_size(mavlink_message_t *msg);//for field, Clarence
 	void handle_message_field_size_confirm(mavlink_message_t *msg);//for field, Clarence
 	void handle_message_pump_controller(mavlink_message_t *msg);
+	void handle_message_extra_function(mavlink_message_t *msg); //add by CJ
 	void *receive_thread(void *arg);
 
 	/**
@@ -203,6 +205,7 @@ private:
 	orb_advert_t _laser_distance_pub; //publisher for laser
 	orb_advert_t _field_size_pub; //publisher for field Clarence
 	orb_advert_t _field_size_confirm_pub; //publisher for field Clarence
+	orb_advert_t _extra_function_pub; //add by CJ
 	orb_advert_t _pump_controller_pub;
 	int _control_mode_sub;
 	int _hil_frames;

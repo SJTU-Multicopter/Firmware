@@ -127,6 +127,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_laser_distance_pub(-1),   //initialize publisher, by Clarence
 	_field_size_pub(-1),   //initialize publisher, by Clarence
 	_field_size_confirm_pub(-1),   //initialize publisher, by Clarence
+	_extra_function_pub(-1),    //by CJ
 	_pump_controller_pub(-1),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
@@ -237,6 +238,11 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_PUMP_CONTROLLER:
 	        handle_message_pump_controller(msg);
 	        break; 
+	//add by CJ
+	case MAVLINK_MSG_ID_EXTRA_FUNCTION:
+		handle_message_extra_function(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -1776,6 +1782,29 @@ void MavlinkReceiver::handle_message_field_size_confirm(mavlink_message_t *msg)
 		_field_size_confirm_pub = orb_advertise(ORB_ID(field_size_confirm), &size);
 	} else {
 		orb_publish(ORB_ID(field_size_confirm), _field_size_confirm_pub, &size);
+	}
+}
+
+//add by CJ
+void MavlinkReceiver::handle_message_extra_function(mavlink_message_t *msg)
+{
+	mavlink_extra_function_t value;
+	mavlink_msg_extra_function_decode(msg, &value);
+
+	extra_function_s extra_function;
+	memset(&extra_function, 0, sizeof(extra_function));
+
+	extra_function.obs_avoid_enable = value.obs_avoid_enable;
+	extra_function.laser_height_enable = value.obs_avoid_enable;
+	extra_function.add_one = value.add_one;
+	extra_function.add_two = value.add_two;
+	extra_function.add_three = value.add_three;
+
+	//publish
+        if (_extra_function_pub == -1) {
+		_extra_function_pub = orb_advertise(ORB_ID(extra_function), &extra_function);
+	} else {
+		orb_publish(ORB_ID(extra_function), _extra_function_pub, &extra_function);
 	}
 }
 

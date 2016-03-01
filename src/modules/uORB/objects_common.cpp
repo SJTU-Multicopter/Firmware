@@ -268,3 +268,6 @@ ORB_DEFINE(pump_status, struct pump_status_s);
 
 #include "topics/test.h"
 ORB_DEFINE(test, struct test_s);
+
+#include "topics/extra_function.h"
+ORB_DEFINE(extra_function, struct extra_function_s);
