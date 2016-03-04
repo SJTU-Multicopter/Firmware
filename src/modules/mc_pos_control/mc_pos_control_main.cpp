@@ -675,7 +675,7 @@ MulticopterPositionControl::control_manual(float dt)
 		_sp_move_rate(0) = _manual.x;
 		_sp_move_rate(1) = _manual.y;
 
-		if(_extra_function.obs_avoid_enable !=  0){
+	/*	if(_extra_function.obs_avoid_enable !=  0){
 
 		if((_laser.min_distance>90.0f)&&(_laser.min_distance<250.0f)){
 			if(_laser.angle >= 0.0f && _laser.angle < 22.5f ){
@@ -762,7 +762,7 @@ MulticopterPositionControl::control_manual(float dt)
 				}
 			}
 		}
-		}	
+		}	*/
 	}
 
 	/* limit setpoint move rate */
@@ -1563,7 +1563,9 @@ MulticopterPositionControl::task_main()
 
 			if(_extra_function.obs_avoid_enable != 0){
 				if((_laser.min_distance>90.0f)&&(_laser.min_distance<Laser_distance)){
-					if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
+					_att_sp.pitch_body += abs(cosf(_laser.angle))/(cosf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle)*_laser.min_distance*cosf(_laser.angle)/10000.0f)+0.05f));
+					_att_sp.roll_body += -abs(sinf(_laser.angle))/(sinf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle)*_laser.min_distance*sinf(_laser.angle)/10000.0f)+0.05f));
+					/*if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = 0.0f;
 						//_att_sp.pitch_body = 0.0f;
@@ -1612,20 +1614,20 @@ MulticopterPositionControl::task_main()
 						_att_sp.roll_body = 0.0f;
 						//_att_sp.pitch_body = 0.0f;
 						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}*/
+
+					if(_att_sp.pitch_body > math::radians(30.0f)){
+						_att_sp.pitch_body  = math::radians(30.0f);
+					}
+					if(_att_sp.pitch_body < -math::radians(30.0f)){
+						_att_sp.pitch_body  = -math::radians(30.0f);
 					}
 
-					if(_att_sp.pitch_body > math::radians(20.0f)){
-						_att_sp.pitch_body  = math::radians(20.0f);
+					if(_att_sp.roll_body > math::radians(30.0f)){
+						_att_sp.roll_body  = math::radians(30.0f);
 					}
-					if(_att_sp.pitch_body < -math::radians(20.0f)){
-						_att_sp.pitch_body  = -math::radians(20.0f);
-					}
-
-					if(_att_sp.roll_body > math::radians(20.0f)){
-						_att_sp.roll_body  = math::radians(20.0f);
-					}
-					if(_att_sp.roll_body < -math::radians(20.0f)){
-						_att_sp.roll_body  = -math::radians(20.0f);
+					if(_att_sp.roll_body < -math::radians(30.0f)){
+						_att_sp.roll_body  = -math::radians(30.0f);
 					}
 				}
 			}
