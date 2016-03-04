@@ -75,8 +75,8 @@
 #include <uORB/topics/time_offset.h>
 #include <uORB/topics/sonar_distance.h> //added by Clarence
 #include <uORB/topics/laser_distance.h> //added by Clarence
-#include <uORB/topics/field_size.h> //added by Clarence
-#include <uORB/topics/field_size_confirm.h> //added by Clarence
+#include <uORB/topics/offboard_setpoint.h> //added by Clarence
+#include <uORB/topics/offboard_setpoint_confirm.h> //added by Clarence
 #include <uORB/topics/pump_controller.h>
 #include <uORB/topics/extra_function.h>  //add by CJ
 #include "mavlink_ftp.h"
@@ -142,8 +142,8 @@ private:
 	void handle_message_hil_state_quaternion(mavlink_message_t *msg);
 	void handle_message_sonar_distance(mavlink_message_t *msg);//for sonar, Clarence
 	void handle_message_laser_distance(mavlink_message_t *msg);//for laser, Clarence
-	void handle_message_field_size(mavlink_message_t *msg);//for field, Clarence
-	void handle_message_field_size_confirm(mavlink_message_t *msg);//for field, Clarence
+	void handle_message_offboard_setpoint(mavlink_message_t *msg);//for field, Clarence
+	void handle_message_offboard_setpoint_confirm(mavlink_message_t *msg);//for field, Clarence
 	void handle_message_pump_controller(mavlink_message_t *msg);
 	void handle_message_extra_function(mavlink_message_t *msg); //add by CJ
 	void *receive_thread(void *arg);
@@ -203,8 +203,8 @@ private:
 	orb_advert_t _time_offset_pub;
 	orb_advert_t _sonar_distance_pub; //publisher for sonar
 	orb_advert_t _laser_distance_pub; //publisher for laser
-	orb_advert_t _field_size_pub; //publisher for field Clarence
-	orb_advert_t _field_size_confirm_pub; //publisher for field Clarence
+	orb_advert_t _offboard_setpoint_pub; //publisher for field Clarence
+	orb_advert_t _offboard_setpoint_confirm_pub; //publisher for field Clarence
 	orb_advert_t _extra_function_pub; //add by CJ
 	orb_advert_t _pump_controller_pub;
 	int _control_mode_sub;

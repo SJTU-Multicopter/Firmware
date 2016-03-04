@@ -125,8 +125,8 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_time_offset_pub(-1),
 	_sonar_distance_pub(-1),   //initialize publisher, by Clarence
 	_laser_distance_pub(-1),   //initialize publisher, by Clarence
-	_field_size_pub(-1),   //initialize publisher, by Clarence
-	_field_size_confirm_pub(-1),   //initialize publisher, by Clarence
+	_offboard_setpoint_pub(-1),   //initialize publisher, by Clarence
+	_offboard_setpoint_confirm_pub(-1),   //initialize publisher, by Clarence
 	_extra_function_pub(-1),    //by CJ
 	_pump_controller_pub(-1),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
@@ -229,11 +229,11 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_LASER_DISTANCE:
 	       	handle_message_laser_distance(msg);
 	      	break; 
-	case MAVLINK_MSG_ID_FIELD_SIZE:
-	        handle_message_field_size(msg);
+	case MAVLINK_MSG_ID_OFFBOARD_SETPOINT:
+	        handle_message_offboard_setpoint(msg);
 	        break; 
-	case MAVLINK_MSG_ID_FIELD_SIZE_CONFIRM:
-	        handle_message_field_size_confirm(msg);
+	case MAVLINK_MSG_ID_OFFBOARD_SETPOINT_CONFIRM:
+	        handle_message_offboard_setpoint_confirm(msg);
 	        break; 
 	case MAVLINK_MSG_ID_PUMP_CONTROLLER:
 	        handle_message_pump_controller(msg);
@@ -1736,52 +1736,59 @@ void MavlinkReceiver::handle_message_pump_controller(mavlink_message_t *msg)
 	}
 }
 
-void MavlinkReceiver::handle_message_field_size(mavlink_message_t *msg)
+void MavlinkReceiver::handle_message_offboard_setpoint(mavlink_message_t *msg)
 {
-	mavlink_field_size_t values;
-	mavlink_msg_field_size_decode(msg, &values);
+	mavlink_offboard_setpoint_t values;
+	mavlink_msg_offboard_setpoint_decode(msg, &values);
 
-	field_size_s size;
+	offboard_setpoint_s size;
 	memset(&size, 0, sizeof(size));
          
         //hrt_abstime current_time = hrt_absolute_time();//for signal testing
 
         //set values  
-        size.length = values.length;
-	size.width = values.width;
-	size.height = values.height;
-	size.times = values.times;
+        size.px_1 = values.px_1;
+	size.py_1 = values.py_1;
+	size.ph_1 = values.ph_1;
+	size.px_2 = values.px_2;
+	size.py_2 = values.py_2;
+	size.ph_2 = values.ph_2;
+	size.seq = values.seq;
+	size.total = values.total;
         
         //publish
-        if (_field_size_pub == -1) {
-		_field_size_pub = orb_advertise(ORB_ID(field_size), &size);
+        if (_offboard_setpoint_pub == -1) {
+		_offboard_setpoint_pub = orb_advertise(ORB_ID(offboard_setpoint), &size);
 	} else {
-		orb_publish(ORB_ID(field_size), _field_size_pub, &size);
+		orb_publish(ORB_ID(offboard_setpoint), _offboard_setpoint_pub, &size);
 	}
 }
 
-void MavlinkReceiver::handle_message_field_size_confirm(mavlink_message_t *msg)
+void MavlinkReceiver::handle_message_offboard_setpoint_confirm(mavlink_message_t *msg)
 {
-	mavlink_field_size_confirm_t values;
-	mavlink_msg_field_size_confirm_decode(msg, &values);
+	mavlink_offboard_setpoint_confirm_t values;
+	mavlink_msg_offboard_setpoint_confirm_decode(msg, &values);
 
-	field_size_confirm_s size;
+	offboard_setpoint_confirm_s size;
 	memset(&size, 0, sizeof(size));
          
         //hrt_abstime current_time = hrt_absolute_time();//for signal testing
 
         //set values  
-        size.length = values.length;
-	size.width = values.width;
-	size.height = values.height;
-	size.times = values.times;
-	size.confirm = values.confirm;
+        size.px_1 = values.px_1;
+	size.py_1 = values.py_1;
+	size.ph_1 = values.ph_1;
+	size.px_2 = values.px_2;
+	size.py_2 = values.py_2;
+	size.ph_2 = values.ph_2;
+	size.seq = values.seq;
+	size.total = values.total;
         
         //publish
-        if (_field_size_confirm_pub == -1) {
-		_field_size_confirm_pub = orb_advertise(ORB_ID(field_size_confirm), &size);
+        if (_offboard_setpoint_confirm_pub == -1) {
+		_offboard_setpoint_confirm_pub = orb_advertise(ORB_ID(offboard_setpoint_confirm), &size);
 	} else {
-		orb_publish(ORB_ID(field_size_confirm), _field_size_confirm_pub, &size);
+		orb_publish(ORB_ID(offboard_setpoint_confirm), _offboard_setpoint_confirm_pub, &size);
 	}
 }
 
