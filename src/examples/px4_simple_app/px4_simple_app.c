@@ -47,6 +47,7 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/laser_distance.h> //add by CJ
 
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
 
@@ -55,17 +56,17 @@ int px4_simple_app_main(int argc, char *argv[])
 	printf("Hello Sky!\n");
 
 	/* subscribe to sensor_combined topic */
-	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
-	orb_set_interval(sensor_sub_fd, 1000);
+	int laser_sub_fd = orb_subscribe(ORB_ID(laser_distance));
+	orb_set_interval(laser_sub_fd, 1000);
 
 	/* advertise attitude topic */
-	struct vehicle_attitude_s att;
-	memset(&att, 0, sizeof(att));
-	orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
+	//struct vehicle_attitude_s att;
+	//memset(&att, 0, sizeof(att));
+	//orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
 
 	/* one could wait for multiple topics with this technique, just using one here */
 	struct pollfd fds[] = {
-		{ .fd = sensor_sub_fd,   .events = POLLIN },
+		{ .fd = laser_sub_fd,   .events = POLLIN },
 		/* there could be more file descriptors here, in the form like:
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
@@ -96,19 +97,18 @@ int px4_simple_app_main(int argc, char *argv[])
 
 			if (fds[0].revents & POLLIN) {
 				/* obtained data for the first file descriptor */
-				struct sensor_combined_s raw;
+				struct laser_distance_s raw;
 				/* copy sensors raw data into local buffer */
-				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-				printf("[px4_simple_app] Accelerometer:\t%8.4f\t%8.4f\t%8.4f\n",
-				       (double)raw.accelerometer_m_s2[0],
-				       (double)raw.accelerometer_m_s2[1],
-				       (double)raw.accelerometer_m_s2[2]);
+				orb_copy(ORB_ID(laser_distance), laser_sub_fd, &raw);
+				printf("[px4_simple_app] laser_message:\t%8.4f\t%8.4f\t%8.4f\n",
+				       (double)raw.min_distance,
+				       (double)raw.angle);
 
 				/* set att and publish this information for other apps */
-				att.roll = raw.accelerometer_m_s2[0];
-				att.pitch = raw.accelerometer_m_s2[1];
-				att.yaw = raw.accelerometer_m_s2[2];
-				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
+				//att.roll = raw.accelerometer_m_s2[0];
+				//att.pitch = raw.accelerometer_m_s2[1];
+				//att.yaw = raw.accelerometer_m_s2[2];
+				//orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
 			}
 
 			/* there could be more file descriptors here, in the form like:
