@@ -1753,6 +1753,7 @@ void MavlinkReceiver::handle_message_offboard_setpoint(mavlink_message_t *msg)
 	size.px_2 = values.px_2;
 	size.py_2 = values.py_2;
 	size.ph_2 = values.ph_2;
+	size.yaw = values.yaw;
 	size.seq = values.seq;
 	size.total = values.total;
         

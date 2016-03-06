@@ -94,7 +94,7 @@
 #define Safe_distance_z_1           		400.0f
 #define Safe_distance_z_2          		100.0f
 #define sonar_P                            	12.0f
-#define Laser_distance              	   	200.0f       //laser safe distance
+#define Laser_distance              	   	150.0f       //laser safe distance
 #define Laser_P                            	10.0f  //parameter P of laser obstacle avoidance
 
 /**
@@ -1563,61 +1563,62 @@ MulticopterPositionControl::task_main()
 
 			if(_manual.loiter_switch == 3){
 			//if(_extra_function.obs_avoid_enable != 0){
-				if((_laser.min_distance>90.0f)&&(_laser.min_distance<Laser_distance)){
+				if((_laser.min_distance>40.0f)&&(_laser.min_distance<Laser_distance)){
+					mavlink_log_info(_mavlink_fd, "[mpc] avoid obstacle enable");
 					//_att_sp.pitch_body += abs(cosf(_laser.angle))/(cosf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle)*_laser.min_distance*cosf(_laser.angle)/10000.0f)+0.05f));
 					//_att_sp.roll_body += -abs(sinf(_laser.angle))/(sinf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle)*_laser.min_distance*sinf(_laser.angle)/10000.0f)+0.05f));
-					_att_sp.pitch_body += abs(sinf(_laser.angle))/(sinf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle)*_laser.min_distance*sinf(_laser.angle)/10000.0f)+0.05f));
-					_att_sp.roll_body += -abs(cosf(_laser.angle))/(cosf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle)*_laser.min_distance*cosf(_laser.angle)/10000.0f)+0.05f));
+					_att_sp.pitch_body = _att_sp.pitch_body + (fabsf(sinf(_laser.angle/180.0f*M_PI_F))/(sinf(_laser.angle/180.0f*M_PI_F)))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)*_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)/10000.0f)+0.05f));
+					_att_sp.roll_body = _att_sp.roll_body - (fabsf(cosf(_laser.angle/180.0f*M_PI_F))/(cosf(_laser.angle/180.0f*M_PI_F)))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle/180.0f*M_PI_F)*_laser.min_distance*cosf(_laser.angle/180.0f*M_PI_F)/10000.0f)+0.05f));
 					
 					/*if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.roll_body = 0.0f;
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
-						_att_sp.pitch_body = 0.0f;
-						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = 0.0f;
+						//_att_sp.pitch_body = 0.0f;
+						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = 0.0f;
 					}
 					if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.roll_body = 0.0f;
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
 						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
-						_att_sp.pitch_body = 0.0f;
-						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = 0.0f;
+						//_att_sp.pitch_body = 0.0f;
+						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = 0.0f;
 					}
 					if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 					if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+						//_att_sp.roll_body = 0.0f;
+						_att_sp.pitch_body = 0.0f;
+						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}*/
 
 					if(_att_sp.pitch_body > math::radians(30.0f)){
