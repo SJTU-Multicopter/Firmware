@@ -1473,8 +1473,8 @@ Mavlink::task_main(int argc, char *argv[])
 		/*by Clarence*/
 	//configure_stream("SONAR_DISTANCE", 2.0f);
 	//configure_stream("LASER_DISTANCE", 2.0f);
-	configure_stream("FIELD_SIZE", 2.0f);
-    configure_stream("FIELD_SIZE_CONFIRM", 2.0f);
+	configure_stream("OFFBOARD_SETPOINT", 2.0f);
+    configure_stream("OFFBOARD_SETPOINT_CONFIRM", 2.0f);
     configure_stream("PUMP_STATUS", 1.0f);
 
 	/* PARAM_VALUE stream */

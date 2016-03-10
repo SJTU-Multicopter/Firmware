@@ -2435,6 +2435,7 @@ protected:
                   msg.px_2 = values.px_2;
                   msg.py_2 = values.py_2;
                   msg.ph_2 = values.ph_2;
+                  msg.yaw = values.yaw;
                   msg.seq = values.seq;
                   msg.total = values.total;
                   
