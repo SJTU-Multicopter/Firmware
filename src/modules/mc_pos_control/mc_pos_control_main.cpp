@@ -685,12 +685,12 @@ MulticopterPositionControl::control_manual(float dt)
 		if(_manual.loiter_switch == 3){
 			if((_laser.min_distance>100.0f)&&(_laser.min_distance<200.0f)){
 				if(vel_body(0)*_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)+vel_body(1)*_laser.min_distance*cosf(_laser.angle/180.0f*M_PI_F) > 0.0f){
-					if(fabsf(tanf(vel_body(0)/vel_body(1))) > fabsf(tanf(_laser.angle/180.0f*M_PI_F))){
-						_sp_move_rate(0) = (1.6f - 0.008f * _laser.min_distance) * cosf(_laser.angle/180.0f*M_PI_F);
-						_sp_move_rate(1) = (1.6f - 0.008f * _laser.min_distance) * -sinf(_laser.angle/180.0f*M_PI_F);
+					if(atan2f(vel_body(0),vel_body(1)) > (_laser.angle-180.0f)/180.0f*M_PI_F){
+						_sp_move_rate(0) = 1.0f / (_laser.min_distance * _laser.min_distance / 10000.0f) * cosf(_laser.angle/180.0f*M_PI_F);
+						_sp_move_rate(1) = 1.0f / (_laser.min_distance * _laser.min_distance / 10000.0f) * -sinf(_laser.angle/180.0f*M_PI_F);
 					}else{
-						_sp_move_rate(0) = (1.6f - 0.008f * _laser.min_distance) * -cosf(_laser.angle/180.0f*M_PI_F);
-						_sp_move_rate(1) = (1.6f - 0.008f * _laser.min_distance) * sinf(_laser.angle/180.0f*M_PI_F);
+						_sp_move_rate(0) = 1.0f / (_laser.min_distance * _laser.min_distance / 10000.0f) * -cosf(_laser.angle/180.0f*M_PI_F);
+						_sp_move_rate(1) = 1.0f / (_laser.min_distance * _laser.min_distance / 10000.0f) * sinf(_laser.angle/180.0f*M_PI_F);
 					}
 				}
 			}
@@ -1585,7 +1585,7 @@ MulticopterPositionControl::task_main()
 			if(_manual.loiter_switch == 3){
 			//if(_extra_function.obs_avoid_enable != 0){
 				//if((_laser.min_distance>30.0f)&&(_laser.min_distance<Laser_distance)){
-				mavlink_log_info(_mavlink_fd, "[mpc] avoid obstacle enable");
+				//mavlink_log_info(_mavlink_fd, "[mpc] avoid obstacle enable");
 					//_att_sp.pitch_body += abs(cosf(_laser.angle))/(cosf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle)*_laser.min_distance*cosf(_laser.angle)/10000.0f)+0.05f));
 					//_att_sp.roll_body += -abs(sinf(_laser.angle))/(sinf(_laser.angle))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle)*_laser.min_distance*sinf(_laser.angle)/10000.0f)+0.05f));
 					//_att_sp.pitch_body = _att_sp.pitch_body + (fabsf(sinf(_laser.angle/180.0f*M_PI_F))/(sinf(_laser.angle/180.0f*M_PI_F)))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)*_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)/10000.0f)+0.05f));
@@ -1645,18 +1645,18 @@ MulticopterPositionControl::task_main()
 						_att_sp.roll_body = -math::radians(Laser_POS_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 
-					if(_att_sp.pitch_body > math::radians(20.0f)){
-						_att_sp.pitch_body  = math::radians(20.0f);
+					if(_att_sp.pitch_body > math::radians(30.0f)){
+						_att_sp.pitch_body  = math::radians(30.0f);
 					}
-					if(_att_sp.pitch_body < -math::radians(20.0f)){
-						_att_sp.pitch_body  = -math::radians(20.0f);
+					if(_att_sp.pitch_body < -math::radians(30.0f)){
+						_att_sp.pitch_body  = -math::radians(30.0f);
 					}
 
-					if(_att_sp.roll_body > math::radians(20.0f)){
-						_att_sp.roll_body  = math::radians(20.0f);
+					if(_att_sp.roll_body > math::radians(30.0f)){
+						_att_sp.roll_body  = math::radians(30.0f);
 					}
-					if(_att_sp.roll_body < -math::radians(20.0f)){
-						_att_sp.roll_body  = -math::radians(20.0f);
+					if(_att_sp.roll_body < -math::radians(30.0f)){
+						_att_sp.roll_body  = -math::radians(30.0f);
 					}
 					}
 				}else{
@@ -1664,18 +1664,18 @@ MulticopterPositionControl::task_main()
 						_att_sp.pitch_body = _att_sp.pitch_body + (fabsf(sinf(_laser.angle/180.0f*M_PI_F))/(sinf(_laser.angle/180.0f*M_PI_F)))*math::radians(Laser_P/((_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)*_laser.min_distance*sinf(_laser.angle/180.0f*M_PI_F)/10000.0f)+0.05f));
 						_att_sp.roll_body = _att_sp.roll_body - (fabsf(cosf(_laser.angle/180.0f*M_PI_F))/(cosf(_laser.angle/180.0f*M_PI_F)))*math::radians(Laser_P/((_laser.min_distance*cosf(_laser.angle/180.0f*M_PI_F)*_laser.min_distance*cosf(_laser.angle/180.0f*M_PI_F)/10000.0f)+0.05f));
 
-						if(_att_sp.pitch_body > math::radians(20.0f)){
-							_att_sp.pitch_body  = math::radians(20.0f);
+						if(_att_sp.pitch_body > math::radians(30.0f)){
+							_att_sp.pitch_body  = math::radians(30.0f);
 						}
-						if(_att_sp.pitch_body < -math::radians(20.0f)){
-							_att_sp.pitch_body  = -math::radians(20.0f);
+						if(_att_sp.pitch_body < -math::radians(30.0f)){
+							_att_sp.pitch_body  = -math::radians(30.0f);
 						}
 
-						if(_att_sp.roll_body > math::radians(20.0f)){
-							_att_sp.roll_body  = math::radians(20.0f);
+						if(_att_sp.roll_body > math::radians(30.0f)){
+							_att_sp.roll_body  = math::radians(30.0f);
 						}
-						if(_att_sp.roll_body < -math::radians(20.0f)){
-							_att_sp.roll_body  = -math::radians(20.0f);
+						if(_att_sp.roll_body < -math::radians(30.0f)){
+							_att_sp.roll_body  = -math::radians(30.0f);
 						}
 					
 					}
