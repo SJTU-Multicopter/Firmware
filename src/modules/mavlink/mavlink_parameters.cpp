@@ -46,7 +46,7 @@
 
 MavlinkParametersManager::MavlinkParametersManager(Mavlink *mavlink) : MavlinkStream(mavlink),
 	_send_all_index(-1),
-	_rc_param_map_pub(-1),
+	_rc_param_map_pub(nullptr),
 	_rc_param_map()
 {
 }
@@ -159,9 +159,9 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 				/* Copy values from msg to uorb using the parameter_rc_channel_index as index */
 				size_t i = map_rc.parameter_rc_channel_index;
 				_rc_param_map.param_index[i] = map_rc.param_index;
-				strncpy(&(_rc_param_map.param_id[i][0]), map_rc.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+				strncpy(&(_rc_param_map.param_id[i * (rc_parameter_map_s::PARAM_ID_LEN + 1)]), map_rc.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
 				/* enforce null termination */
-				_rc_param_map.param_id[i][MAVLINK_MSG_PARAM_MAP_RC_FIELD_PARAM_ID_LEN] = '\0';
+				_rc_param_map.param_id[i * (rc_parameter_map_s::PARAM_ID_LEN + 1) + rc_parameter_map_s::PARAM_ID_LEN] = '\0';
 				_rc_param_map.scale[i] = map_rc.scale;
 				_rc_param_map.value0[i] = map_rc.param_value0;
 				_rc_param_map.value_min[i] = map_rc.param_value_min;
@@ -173,7 +173,7 @@ MavlinkParametersManager::handle_message(const mavlink_message_t *msg)
 				}
 				_rc_param_map.timestamp = hrt_absolute_time();
 
-				if (_rc_param_map_pub < 0) {
+				if (_rc_param_map_pub == nullptr) {
 					_rc_param_map_pub = orb_advertise(ORB_ID(rc_parameter_map), &_rc_param_map);
 
 				} else {

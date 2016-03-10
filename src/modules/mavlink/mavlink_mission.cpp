@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2014 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2012-2015 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,9 +35,9 @@
  * @file mavlink_mission.cpp
  * MAVLink mission manager implementation.
  *
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Julian Oes <joes@student.ethz.ch>
- * @author Anton Babushkin <anton.babushkin@me.com>
+ * @author Lorenz Meier <lorenz@px4.io>
+ * @author Julian Oes <julian@px4.io>
+ * @author Anton Babushkin <anton@px4.io>
  */
 
 #include "mavlink_mission.h"
@@ -49,6 +49,7 @@
 #include <drivers/drv_hrt.h>
 
 #include <dataman/dataman.h>
+#include <navigator/navigation.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
 
@@ -57,6 +58,12 @@
 # undef ERROR
 #endif
 static const int ERROR = -1;
+
+int MavlinkMissionManager::_dataman_id = 0;
+bool MavlinkMissionManager::_dataman_init = false;
+unsigned MavlinkMissionManager::_count = 0;
+int MavlinkMissionManager::_current_seq = 0;
+bool MavlinkMissionManager::_transfer_in_progress = false;
 
 #define CHECK_SYSID_COMPID_MISSION(_msg)		(_msg.target_system == mavlink_system.sysid && \
 						((_msg.target_component == mavlink_system.compid) || \
@@ -70,9 +77,8 @@ MavlinkMissionManager::MavlinkMissionManager(Mavlink *mavlink) : MavlinkStream(m
 	_action_timeout(MAVLINK_MISSION_PROTOCOL_TIMEOUT_DEFAULT),
 	_retry_timeout(MAVLINK_MISSION_RETRY_TIMEOUT_DEFAULT),
 	_max_count(DM_KEY_WAYPOINTS_OFFBOARD_0_MAX),
-	_dataman_id(0),
-	_count(0),
-	_current_seq(0),
+	_filesystem_errcount(0),
+	_my_dataman_id(0),
 	_transfer_dataman_id(0),
 	_transfer_count(0),
 	_transfer_seq(0),
@@ -81,7 +87,7 @@ MavlinkMissionManager::MavlinkMissionManager(Mavlink *mavlink) : MavlinkStream(m
 	_transfer_partner_compid(0),
 	_offboard_mission_sub(-1),
 	_mission_result_sub(-1),
-	_offboard_mission_pub(-1),
+	_offboard_mission_pub(nullptr),
 	_slow_rate_limiter(_interval / 10.0f),
 	_verbose(false)
 {
@@ -93,7 +99,6 @@ MavlinkMissionManager::MavlinkMissionManager(Mavlink *mavlink) : MavlinkStream(m
 
 MavlinkMissionManager::~MavlinkMissionManager()
 {
-	close(_offboard_mission_pub);
 	close(_mission_result_sub);
 }
 
@@ -115,17 +120,21 @@ void
 MavlinkMissionManager::init_offboard_mission()
 {
 	mission_s mission_state;
-	if (dm_read(DM_KEY_MISSION_STATE, 0, &mission_state, sizeof(mission_s)) == sizeof(mission_s)) {
-		_dataman_id = mission_state.dataman_id;
-		_count = mission_state.count;
-		_current_seq = mission_state.current_seq;
+	if (!_dataman_init) {
+		_dataman_init = true;
+		if (dm_read(DM_KEY_MISSION_STATE, 0, &mission_state, sizeof(mission_s)) == sizeof(mission_s)) {
+			_dataman_id = mission_state.dataman_id;
+			_count = mission_state.count;
+			_current_seq = mission_state.current_seq;
 
-	} else {
-		_dataman_id = 0;
-		_count = 0;
-		_current_seq = 0;
-		warnx("offboard mission init: ERROR");
+		} else {
+			_dataman_id = 0;
+			_count = 0;
+			_current_seq = 0;
+			warnx("offboard mission init: ERROR");
+		}
 	}
+	_my_dataman_id = _dataman_id;
 }
 
 /**
@@ -148,9 +157,10 @@ MavlinkMissionManager::update_active_mission(int dataman_id, unsigned count, int
 		_dataman_id = dataman_id;
 		_count = count;
 		_current_seq = seq;
+		_my_dataman_id = _dataman_id;
 
 		/* mission state saved successfully, publish offboard_mission topic */
-		if (_offboard_mission_pub < 0) {
+		if (_offboard_mission_pub == nullptr) {
 			_offboard_mission_pub = orb_advertise(ORB_ID(offboard_mission), &mission);
 
 		} else {
@@ -160,8 +170,10 @@ MavlinkMissionManager::update_active_mission(int dataman_id, unsigned count, int
 		return OK;
 
 	} else {
-		warnx("ERROR: can't save mission state");
-		_mavlink->send_statustext(MAV_SEVERITY_CRITICAL, "ERROR: can't save mission state");
+		warnx("WPM: ERROR: can't save mission state");
+		if (_filesystem_errcount++ < FILESYSTEM_ERRCOUNT_NOTIFY_LIMIT) {
+			_mavlink->send_statustext_critical("Mission storage: Unable to write to microSD");
+		}
 
 		return ERROR;
 	}
@@ -244,7 +256,9 @@ MavlinkMissionManager::send_mission_item(uint8_t sysid, uint8_t compid, uint16_t
 
 	} else {
 		send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_ERROR);
-		_mavlink->send_statustext_critical("Unable to read from micro SD");
+		if (_filesystem_errcount++ < FILESYSTEM_ERRCOUNT_NOTIFY_LIMIT) {
+			_mavlink->send_statustext_critical("Mission storage: Unable to read from microSD");
+		}
 
 		if (_verbose) { warnx("WPM: Send MISSION_ITEM ERROR: could not read seq %u from dataman ID %i", seq, _dataman_id); }
 	}
@@ -470,8 +484,6 @@ MavlinkMissionManager::handle_mission_request_list(const mavlink_message_t *msg)
 
 			} else {
 				if (_verbose) { warnx("WPM: MISSION_REQUEST_LIST OK nothing to send, mission is empty"); }
-
-				_mavlink->send_statustext_info("WPM: mission is empty");
 			}
 
 			send_mission_count(msg->sysid, msg->compid, _count);
@@ -565,11 +577,19 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 	if (CHECK_SYSID_COMPID_MISSION(wpc)) {
 		if (_state == MAVLINK_WPM_STATE_IDLE) {
 			_time_last_recv = hrt_absolute_time();
+			
+			if(_transfer_in_progress)
+			{
+				send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_ERROR);
+				return;
+			}
+			_transfer_in_progress = true;
 
 			if (wpc.count > _max_count) {
 				if (_verbose) { warnx("WPM: MISSION_COUNT ERROR: too many waypoints (%d), supported: %d", wpc.count, _max_count); }
 
 				send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_NO_SPACE);
+				_transfer_in_progress = false;
 				return;
 			}
 
@@ -581,6 +601,7 @@ MavlinkMissionManager::handle_mission_count(const mavlink_message_t *msg)
 				_mavlink->send_statustext_info("WPM: COUNT 0: CLEAR MISSION");
 
 				// TODO send ACK?
+				_transfer_in_progress = false;
 				return;
 			}
 
@@ -662,6 +683,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 
 			send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, ret);
 			_state = MAVLINK_WPM_STATE_IDLE;
+			_transfer_in_progress = false;
 			return;
 		}
 
@@ -673,6 +695,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_ERROR);
 			_mavlink->send_statustext_critical("Unable to write on micro SD");
 			_state = MAVLINK_WPM_STATE_IDLE;
+			_transfer_in_progress = false;
 			return;
 		}
 
@@ -699,6 +722,7 @@ MavlinkMissionManager::handle_mission_item(const mavlink_message_t *msg)
 			} else {
 				send_mission_ack(_transfer_partner_sysid, _transfer_partner_compid, MAV_MISSION_ERROR);
 			}
+			_transfer_in_progress = false;
 
 		} else {
 			/* request next item */
@@ -768,11 +792,20 @@ MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *
 	case MAV_CMD_NAV_TAKEOFF:
 		mission_item->pitch_min = mavlink_mission_item->param1;
 		break;
+
 	case MAV_CMD_DO_JUMP:
 		mission_item->do_jump_mission_index = mavlink_mission_item->param1;
 		mission_item->do_jump_current_count = 0;
 		mission_item->do_jump_repeat_count = mavlink_mission_item->param2;
 		break;
+
+	case MAV_CMD_DO_SET_SERVO:
+
+		mission_item->actuator_num = mavlink_mission_item->param1;
+		mission_item->actuator_value = mavlink_mission_item->param2;
+		mission_item->time_inside=0.0f;
+		break;
+
 	default:
 		mission_item->acceptance_radius = mavlink_mission_item->param2;
 		mission_item->time_inside = mavlink_mission_item->param1;
@@ -810,6 +843,11 @@ MavlinkMissionManager::format_mavlink_mission_item(const struct mission_item_s *
 		mavlink_mission_item->param1 = mission_item->pitch_min;
 		break;
 
+	case NAV_CMD_DO_SET_SERVO:
+		mavlink_mission_item->param1 = mission_item->actuator_num;
+		mavlink_mission_item->param2 = mission_item->actuator_value;
+		break;
+
 	case NAV_CMD_DO_JUMP:
 		mavlink_mission_item->param1 = mission_item->do_jump_mission_index;
 		mavlink_mission_item->param2 = mission_item->do_jump_repeat_count - mission_item->do_jump_current_count;
@@ -832,4 +870,15 @@ MavlinkMissionManager::format_mavlink_mission_item(const struct mission_item_s *
 	// mavlink_mission_item->seq = mission_item->index;
 
 	return OK;
+}
+
+
+void MavlinkMissionManager::check_active_mission(void)
+{
+	if(!(_my_dataman_id==_dataman_id))
+	{
+		if (_verbose) { warnx("WPM: New mission detected (possibly over different Mavlink instance) Updating"); }
+		_my_dataman_id=_dataman_id;
+		this->send_mission_count(_transfer_partner_sysid, _transfer_partner_compid, _count);
+	}
 }
