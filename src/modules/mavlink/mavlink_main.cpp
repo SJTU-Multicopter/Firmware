@@ -1474,8 +1474,9 @@ Mavlink::task_main(int argc, char *argv[])
 	//configure_stream("SONAR_DISTANCE", 2.0f);
 	//configure_stream("LASER_DISTANCE", 2.0f);
 	configure_stream("OFFBOARD_SETPOINT", 2.0f);
-    configure_stream("OFFBOARD_SETPOINT_CONFIRM", 2.0f);
-    configure_stream("PUMP_STATUS", 1.0f);
+   	configure_stream("OFFBOARD_SETPOINT_CONFIRM", 2.0f);
+    	configure_stream("PUMP_STATUS", 1.0f);
+    	configure_stream("EXTRA_FUNCTION", 2.0f);
 
 	/* PARAM_VALUE stream */
 	_parameters_manager = (MavlinkParametersManager *) MavlinkParametersManager::new_instance(this);

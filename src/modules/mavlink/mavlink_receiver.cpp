@@ -1803,7 +1803,7 @@ void MavlinkReceiver::handle_message_extra_function(mavlink_message_t *msg)
 	memset(&extra_function, 0, sizeof(extra_function));
 
 	extra_function.obs_avoid_enable = value.obs_avoid_enable;
-	extra_function.laser_height_enable = value.obs_avoid_enable;
+	extra_function.laser_height_enable = value.laser_height_enable;
 	extra_function.add_one = value.add_one;
 	extra_function.add_two = value.add_two;
 	extra_function.add_three = value.add_three;

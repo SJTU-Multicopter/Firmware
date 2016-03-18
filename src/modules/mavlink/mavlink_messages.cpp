@@ -71,6 +71,7 @@
 #include <uORB/topics/laser_distance.h> //for laser, by Clarence
 #include <uORB/topics/offboard_setpoint.h> //for field_size, by Clarence
 #include <uORB/topics/offboard_setpoint_confirm.h> //for field_size, by Clarence
+#include <uORB/topics/extra_function.h>  //add by CJ
 #include <uORB/topics/pump_status.h>
 #include <uORB/topics/pump_controller.h>
 #include <drivers/drv_rc_input.h>
@@ -2507,6 +2508,65 @@ protected:
         }
          
 };
+
+class MavlinkStreamExtraFunction : public MavlinkStream
+{
+public:
+        
+        const char *get_name() const
+	{
+		return MavlinkStreamExtraFunction::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "EXTRA_FUNCTION";
+	}
+
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_EXTRA_FUNCTION;
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_EXTRA_FUNCTION_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+        static MavlinkStream *new_instance(Mavlink *mavlink)
+           { return new MavlinkStreamExtraFunction(mavlink); }
+ 
+private:
+        MavlinkOrbSubscription *_extra_function_sub;
+
+	MavlinkStreamExtraFunction(MavlinkStreamExtraFunction &);
+	MavlinkStreamExtraFunction & operator = (const MavlinkStreamExtraFunction &);
+ 
+protected:
+        explicit MavlinkStreamExtraFunction(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_extra_function_sub(_mavlink->add_orb_subscription(ORB_ID(extra_function)))
+	{}
+
+        void send(const hrt_abstime t)
+        {
+                struct extra_function_s values;
+                if (_extra_function_sub->update(&values)) {
+
+                  mavlink_extra_function_t msg;
+                  msg.obs_avoid_enable = values.obs_avoid_enable;
+                  msg.laser_height_enable = values.laser_height_enable;
+                  msg.add_one = values.add_one;
+                  msg.add_two = values.add_two;
+                  msg.add_three = values.add_three;
+           
+                  _mavlink->send_message(MAVLINK_MSG_ID_EXTRA_FUNCTION, &msg);
+
+                }
+            
+        }
+         
+};
+
 class MavlinkStreamPumpStatus : public MavlinkStream
 {
 public:
@@ -2605,5 +2665,6 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamOffboardSetpoint::new_instance, &MavlinkStreamOffboardSetpoint::get_name_static),
 	new StreamListItem(&MavlinkStreamOffboardSetpointConfirm::new_instance, &MavlinkStreamOffboardSetpointConfirm::get_name_static),
 	new StreamListItem(&MavlinkStreamPumpStatus::new_instance, &MavlinkStreamPumpStatus::get_name_static),
+	new StreamListItem(&MavlinkStreamExtraFunction::new_instance, &MavlinkStreamExtraFunction::get_name_static),
 	nullptr
 };
