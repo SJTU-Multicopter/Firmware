@@ -95,7 +95,7 @@
 #define Safe_distance_z_2          		100.0f
 #define sonar_P                            	12.0f
 #define Laser_distance              	   	250.0f       //laser safe distance
-#define Laser_P                            	10.0f  //parameter P of laser obstacle avoidance
+#define Laser_P                            	30.0f  //parameter P of laser obstacle avoidance
 
 /**
  * Multicopter position control app start / stop handling function
@@ -676,94 +676,94 @@ MulticopterPositionControl::control_manual(float dt)
 		_sp_move_rate(1) = _manual.y;
 
 		//if(_extra_function.obs_avoid_enable !=  0){
-		if(_manual.loiter_switch == 3){
+		/*if(_manual.loiter_switch == 3){
 
 		if((_laser.min_distance>90.0f)&&(_laser.min_distance<300.0f)){
 			if(_laser.angle >= 0.0f && _laser.angle < 22.5f ){
 				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 			}
 			if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
 				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
 				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
 				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
 				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 			}
 			if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
 				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
 				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
 				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(1) = _manual.y;
 				}
 			}
 			if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
 				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(250.0f - _laser.min_distance)/160.0f;
+					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
 				}else{
 					_sp_move_rate(0) = _manual.x;
 				}
 			}
 		}
-		}	
+		}	*/
 	}
 
 	/* limit setpoint move rate */
@@ -775,7 +775,14 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* _sp_move_rate scaled to 0..1, scale it to max speed and rotate around yaw */
 	math::Matrix<3, 3> R_yaw_sp;
+	math::Matrix<3, 3> R_yaw_sp_inverse;
+	math::Vector<3> pos_body;
 	R_yaw_sp.from_euler(0.0f, 0.0f, _att_sp.yaw_body);
+	
+	R_yaw_sp_inverse.from_euler(0.0f, 0.0f, _att_sp.yaw_body);
+	R_yaw_sp_inverse = R_yaw_sp_inverse.inversed();
+	pos_body = R_yaw_sp_inverse * _pos;
+
 	_sp_move_rate = R_yaw_sp * _sp_move_rate.emult(_params.vel_max);
 
 	if (_control_mode.flag_control_altitude_enabled) {
@@ -793,6 +800,15 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* move position setpoint */
 	_pos_sp += _sp_move_rate * dt;
+
+	//if(_extra_function.obs_avoid_enable !=  0){
+	if(_manual.loiter_switch == 3){
+		if((_laser.min_distance>90.0f)&&(_laser.min_distance<300.0f)){
+			_pos_sp(0) = pos_body(0) - (300.0f - _laser.min_distance) / 100.0f * cosf(_laser.angle/180.0f*M_PI_F);
+			_pos_sp(1) = pos_body(1) - (300.0f - _laser.min_distance) / 100.0f * sinf(_laser.angle/180.0f*M_PI_F);
+			_pos_sp = R_yaw_sp * _pos_sp;
+		}
+	}
 
 	/* check if position setpoint is too far from actual position */
 	math::Vector<3> pos_sp_offs;
@@ -1616,18 +1632,18 @@ MulticopterPositionControl::task_main()
 						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
 
-					if(_att_sp.pitch_body > math::radians(45.0f)){
-						_att_sp.pitch_body  = math::radians(45.0f);
+					if(_att_sp.pitch_body > math::radians(35.0f)){
+						_att_sp.pitch_body  = math::radians(35.0f);
 					}
-					if(_att_sp.pitch_body < -math::radians(45.0f)){
-						_att_sp.pitch_body  = -math::radians(45.0f);
+					if(_att_sp.pitch_body < -math::radians(35.0f)){
+						_att_sp.pitch_body  = -math::radians(35.0f);
 					}
 
-					if(_att_sp.roll_body > math::radians(45.0f)){
-						_att_sp.roll_body  = math::radians(45.0f);
+					if(_att_sp.roll_body > math::radians(35.0f)){
+						_att_sp.roll_body  = math::radians(35.0f);
 					}
-					if(_att_sp.roll_body < -math::radians(45.0f)){
-						_att_sp.roll_body  = -math::radians(45.0f);
+					if(_att_sp.roll_body < -math::radians(35.0f)){
+						_att_sp.roll_body  = -math::radians(35.0f);
 					}
 				}
 			}
