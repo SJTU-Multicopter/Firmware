@@ -596,7 +596,7 @@ MavlinkReceiver::handle_message_set_position_target_local_ned(mavlink_message_t 
 			if (updated) {
 				orb_copy(ORB_ID(vehicle_control_mode), _control_mode_sub, &_control_mode);
 			}
-			if (_control_mode.flag_control_offboard_enabled) {
+			//if (_control_mode.flag_control_offboard_enabled) {
 				if (is_force_sp && offboard_control_mode.ignore_position &&
 						offboard_control_mode.ignore_velocity) {
 					/* The offboard setpoint is a force setpoint only, directly writing to the force
@@ -683,7 +683,7 @@ MavlinkReceiver::handle_message_set_position_target_local_ned(mavlink_message_t 
 
 				}
 
-			}
+			//}
 
 		}
 	}

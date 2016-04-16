@@ -2053,6 +2053,8 @@ Sensors::rc_poll()
 				{
 					manual.aux2 = -1.0f;
 				}
+
+				manual.aux1 = pump_control.pump_speed_sp;
 			}else{
 				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy);
 //				float vel_perc = vel / 3.0f;
