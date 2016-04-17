@@ -94,7 +94,7 @@
 #define Safe_distance_z_1           		400.0f
 #define Safe_distance_z_2          		100.0f
 #define sonar_P                            	12.0f
-#define Laser_distance              	   	250.0f       //laser safe distance
+#define Laser_distance              	   	400.0f       //laser safe distance
 #define Laser_P                            	30.0f  //parameter P of laser obstacle avoidance
 
 /**
@@ -673,97 +673,7 @@ MulticopterPositionControl::control_manual(float dt)
 	if (_control_mode.flag_control_position_enabled) {
 		/* move position setpoint with roll/pitch stick */
 		_sp_move_rate(0) = _manual.x;
-		_sp_move_rate(1) = _manual.y;
-
-		//if(_extra_function.obs_avoid_enable !=  0){
-		/*if(_manual.loiter_switch == 3){
-
-		if((_laser.min_distance>90.0f)&&(_laser.min_distance<300.0f)){
-			if(_laser.angle >= 0.0f && _laser.angle < 22.5f ){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-			}
-			if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
-				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y > 0.0f){
-					_sp_move_rate(1) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
-				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-			}
-			if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
-				if(_manual.x < 0.0f){
-					_sp_move_rate(0) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
-				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-				if(_manual.y < 0.0f){
-					_sp_move_rate(1) = (300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(1) = _manual.y;
-				}
-			}
-			if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
-				if(_manual.x > 0.0f){
-					_sp_move_rate(0) = -(300.0f - _laser.min_distance)/200.0f;
-				}else{
-					_sp_move_rate(0) = _manual.x;
-				}
-			}
-		}
-		}	*/
+		_sp_move_rate(1) = _manual.y;	
 	}
 
 	/* limit setpoint move rate */
@@ -802,7 +712,7 @@ MulticopterPositionControl::control_manual(float dt)
 	_pos_sp += _sp_move_rate * dt;
 
 	//if(_extra_function.obs_avoid_enable !=  0){
-	if(_manual.loiter_switch == 3){
+	if(_manual.loiter_switch == 3 && _laser.laser_x < -1.5f){
 		if((_laser.min_distance>90.0f)&&(_laser.min_distance<300.0f)){
 			_pos_sp(0) = pos_body(0) - (300.0f - _laser.min_distance) / 100.0f * cosf(_laser.angle/180.0f*M_PI_F);
 			_pos_sp(1) = pos_body(1) - (300.0f - _laser.min_distance) / 100.0f * sinf(_laser.angle/180.0f*M_PI_F);
@@ -1579,7 +1489,7 @@ MulticopterPositionControl::task_main()
 			}
 
 			//if(_extra_function.obs_avoid_enable != 0){
-			if(_manual.loiter_switch == 3){
+			if(_manual.loiter_switch == 3 && !_control_mode.flag_control_offboard_enabled && !_control_mode.flag_control_position_enabled && _laser.laser_x < -1.5f){
 				if((_laser.min_distance>90.0f)&&(_laser.min_distance<Laser_distance)){
 					if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
 						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
