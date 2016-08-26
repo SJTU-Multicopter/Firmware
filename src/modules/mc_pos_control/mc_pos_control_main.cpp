@@ -73,9 +73,8 @@
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/vehicle_global_velocity_setpoint.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
-#include <uORB/topics/sonar_distance.h> //add by CJ
-#include <uORB/topics/laser_distance.h> //add by CJ
-#include <uORB/topics/extra_function.h> //add by CJ
+#include <uORB/topics/sonar_distance.h>
+#include <uORB/topics/laser_distance.h>
 
 #include <systemlib/systemlib.h>
 #include <mathlib/mathlib.h>
@@ -86,16 +85,15 @@
 #include <controllib/blocks.hpp>
 #include <controllib/block/BlockParam.hpp>
 
-#define TILT_COS_MAX				0.7f
-#define SIGMA					0.000001f
-#define MIN_DIST				0.01f
-#define MANUAL_THROTTLE_MAX_MULTICOPTER		0.9f
-#define Safe_distance                		120.0f
-#define Safe_distance_z_1           		400.0f
-#define Safe_distance_z_2          		100.0f
-#define sonar_P                            	12.0f
-#define Laser_distance              	   	400.0f       //laser safe distance
-#define Laser_P                            	30.0f  //parameter P of laser obstacle avoidance
+#define TILT_COS_MAX	0.7f
+#define SIGMA			0.000001f
+#define MIN_DIST		0.01f
+#define MANUAL_THROTTLE_MAX_MULTICOPTER	0.9f
+
+#define sonar_P                            12.0f
+#define Laser_distance               300.0f
+#define Laser_distance_pos_mode		400.0f
+#define Laser_P                            30.0f
 
 /**
  * Multicopter position control app start / stop handling function
@@ -143,8 +141,7 @@ private:
 	int		_local_pos_sp_sub;		/**< offboard local position setpoint */
 	int		_global_vel_sp_sub;		/**< offboard global velocity setpoint */
 	int		_sonar_sub;
-        int		_laser_sub;
-        int 		_extra_function_sub;
+	int		_laser_sub;
 
 	orb_advert_t	_att_sp_pub;			/**< attitude setpoint publication */
 	orb_advert_t	_local_pos_sp_pub;		/**< vehicle local position setpoint publication */
@@ -160,9 +157,8 @@ private:
 	struct position_setpoint_triplet_s		_pos_sp_triplet;	/**< vehicle global position setpoint triplet */
 	struct vehicle_local_position_setpoint_s	_local_pos_sp;		/**< vehicle local position setpoint */
 	struct vehicle_global_velocity_setpoint_s	_global_vel_sp;		/**< vehicle global velocity setpoint */
-        struct sonar_distance_s	                        _sonar;
-        struct laser_distance_s	                        _laser;
-        struct extra_function_s 			_extra_function;        //add by CJ
+	struct sonar_distance_s	                        _sonar;
+	struct laser_distance_s	                        _laser;
 
 	control::BlockParamFloat _manual_thr_min;
 	control::BlockParamFloat _manual_thr_max;
@@ -218,6 +214,9 @@ private:
 	bool _reset_pos_sp;
 	bool _reset_alt_sp;
 	bool _mode_auto;
+
+	bool _is_obstacle_avoiding;
+	bool _is_obstacle_avoiding_pre;
 
 	math::Vector<3> _pos;
 	math::Vector<3> _pos_sp;
@@ -327,7 +326,6 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_global_vel_sp_sub(-1),
 	_sonar_sub(-1),
 	_laser_sub(-1),
-	_extra_function_sub(-1),
 
 /* publications */
 	_att_sp_pub(-1),
@@ -340,7 +338,9 @@ MulticopterPositionControl::MulticopterPositionControl() :
 
 	_reset_pos_sp(true),
 	_reset_alt_sp(true),
-	_mode_auto(false)
+	_mode_auto(false),
+	_is_obstacle_avoiding(false),
+	_is_obstacle_avoiding_pre(false)
 {
 	memset(&_vehicle_status, 0, sizeof(_vehicle_status));
 	memset(&_att, 0, sizeof(_att));
@@ -354,7 +354,6 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	memset(&_global_vel_sp, 0, sizeof(_global_vel_sp));
 	memset(&_sonar, 0, sizeof(_sonar));
 	memset(&_laser, 0, sizeof(_laser));
-	memset(&_extra_function, 0, sizeof(_extra_function));
 
 	memset(&_ref_pos, 0, sizeof(_ref_pos));
 
@@ -558,12 +557,6 @@ MulticopterPositionControl::poll_subscriptions()
 	if (updated) {
 		orb_copy(ORB_ID(laser_distance), _laser_sub, &_laser);
 	}
-
-	orb_check(_extra_function_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(extra_function), _extra_function_sub, &_extra_function);
-	}
 }
 
 float
@@ -668,12 +661,31 @@ MulticopterPositionControl::control_manual(float dt)
 	if (_control_mode.flag_control_altitude_enabled) {
 		/* move altitude setpoint with throttle stick */
 		_sp_move_rate(2) = -scale_control(_manual.z - 0.5f, 0.5f, alt_ctl_dz);
+		if((_sonar.sonar_up / 100.0f > 1.0f) && (_sonar.sonar_up / 100.0f < 5.0f))
+		{
+			_sp_move_rate(2) = 1.0f * (500.0f - _sonar.sonar_up) / (500.0f - 100.0f);	
+		}
 	}
 
 	if (_control_mode.flag_control_position_enabled) {
 		/* move position setpoint with roll/pitch stick */
 		_sp_move_rate(0) = _manual.x;
 		_sp_move_rate(1) = _manual.y;	
+	}
+
+	//add by CJ for obstacle avoid
+	if(_manual.loiter_switch==3){
+		_is_obstacle_avoiding_pre = _is_obstacle_avoiding;
+		if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
+			_is_obstacle_avoiding = true;
+		}else
+		{
+			_is_obstacle_avoiding = false;
+		}	
+	}
+	if(!_is_obstacle_avoiding && _is_obstacle_avoiding_pre)
+	{
+		_reset_pos_sp = true;
 	}
 
 	/* limit setpoint move rate */
@@ -685,14 +697,7 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* _sp_move_rate scaled to 0..1, scale it to max speed and rotate around yaw */
 	math::Matrix<3, 3> R_yaw_sp;
-	math::Matrix<3, 3> R_yaw_sp_inverse;
-	math::Vector<3> pos_body;
 	R_yaw_sp.from_euler(0.0f, 0.0f, _att_sp.yaw_body);
-	
-	R_yaw_sp_inverse.from_euler(0.0f, 0.0f, _att_sp.yaw_body);
-	R_yaw_sp_inverse = R_yaw_sp_inverse.inversed();
-	pos_body = R_yaw_sp_inverse * _pos;
-
 	_sp_move_rate = R_yaw_sp * _sp_move_rate.emult(_params.vel_max);
 
 	if (_control_mode.flag_control_altitude_enabled) {
@@ -710,15 +715,6 @@ MulticopterPositionControl::control_manual(float dt)
 
 	/* move position setpoint */
 	_pos_sp += _sp_move_rate * dt;
-
-	//if(_extra_function.obs_avoid_enable !=  0){
-	if(_manual.loiter_switch == 3 && _laser.laser_x < -1.5f){
-		if((_laser.min_distance>90.0f)&&(_laser.min_distance<300.0f)){
-			_pos_sp(0) = pos_body(0) - (300.0f - _laser.min_distance) / 100.0f * cosf(_laser.angle/180.0f*M_PI_F);
-			_pos_sp(1) = pos_body(1) - (300.0f - _laser.min_distance) / 100.0f * sinf(_laser.angle/180.0f*M_PI_F);
-			_pos_sp = R_yaw_sp * _pos_sp;
-		}
-	}
 
 	/* check if position setpoint is too far from actual position */
 	math::Vector<3> pos_sp_offs;
@@ -1488,72 +1484,44 @@ MulticopterPositionControl::task_main()
 				}
 			}
 
-			//if(_extra_function.obs_avoid_enable != 0){
-			if(_manual.loiter_switch == 3 && !_control_mode.flag_control_offboard_enabled && !_control_mode.flag_control_position_enabled && _laser.laser_x < -1.5f){
-				if((_laser.min_distance>90.0f)&&(_laser.min_distance<Laser_distance)){
-					if(_laser.angle >= 0.0f && _laser.angle < 22.5f){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}
-					if(_laser.angle >= 22.5f && _laser.angle < 67.5f ){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+			if(_manual.loiter_switch == 3){
+				if((_laser.min_distance>50.0f)&&(_laser.min_distance<Laser_distance)){
+					if(_laser.angle<-22.5f){
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}
-					if(_laser.angle >= 67.5f && _laser.angle < 112.5f ){
+					}else if(_laser.angle<22.5f){
 						_att_sp.pitch_body = 0.0f;
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = 0.0f;
-					}
-					if(_laser.angle >= 112.5f && _laser.angle < 157.5f ){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<67.5f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}
-					if(_laser.angle >= 157.5f && _laser.angle < 202.5f){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<112.5f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}
-					if(_laser.angle >= 202.5f && _laser.angle < 247.5f){
-						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else if(_laser.angle<157.5f){
+						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-					}
-					if(_laser.angle >= 247.5f && _laser.angle < 292.5f ){
+					}else if(_laser.angle<202.5f){
 						_att_sp.pitch_body = 0.0f;
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = 0.0f;
-					}
-					if(_laser.angle >= 292.5f && _laser.angle < 337.5f){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+					}else{
+						_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 						_att_sp.roll_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.pitch_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
 					}
-					if(_laser.angle >= 337.5f && _laser.angle < 360.0f ){
-						_att_sp.pitch_body = math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
-						_att_sp.roll_body = 0.0f;
-						//_att_sp.pitch_body = 0.0f;
-						//_att_sp.roll_body = -math::radians(Laser_P/((_laser.min_distance*_laser.min_distance/10000.0f)+0.05f));
+				
+					if(_att_sp.pitch_body > math::radians(25.0f)){
+						_att_sp.pitch_body  = math::radians(25.0f);
 					}
-
-					if(_att_sp.pitch_body > math::radians(35.0f)){
-						_att_sp.pitch_body  = math::radians(35.0f);
-					}
-					if(_att_sp.pitch_body < -math::radians(35.0f)){
-						_att_sp.pitch_body  = -math::radians(35.0f);
+					if(_att_sp.pitch_body < -math::radians(25.0f)){
+						_att_sp.pitch_body  = -math::radians(25.0f);
 					}
 
-					if(_att_sp.roll_body > math::radians(35.0f)){
-						_att_sp.roll_body  = math::radians(35.0f);
+				
+					if(_att_sp.roll_body > math::radians(25.0f)){
+						_att_sp.roll_body  = math::radians(25.0f);
 					}
-					if(_att_sp.roll_body < -math::radians(35.0f)){
-						_att_sp.roll_body  = -math::radians(35.0f);
+					if(_att_sp.roll_body < -math::radians(25.0f)){
+						_att_sp.roll_body  = -math::radians(25.0f);
 					}
 				}
 			}

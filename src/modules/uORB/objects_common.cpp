@@ -260,12 +260,6 @@ ORB_DEFINE(offboard_setpoint, struct offboard_setpoint_s);
 #include "topics/offboard_setpoint_confirm.h"
 ORB_DEFINE(offboard_setpoint_confirm, struct offboard_setpoint_confirm_s);
 
-#include "topics/pump_controller.h"
-ORB_DEFINE(pump_controller, struct pump_controller_s);
-
-#include "topics/pump_status.h"
-ORB_DEFINE(pump_status, struct pump_status_s);
-
 #include "topics/test.h"
 ORB_DEFINE(test, struct test_s);
 

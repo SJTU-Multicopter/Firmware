@@ -1,2 +1,0 @@
-float32 pump_speed
-float32 sprayer_speed

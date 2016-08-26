@@ -91,11 +91,6 @@
 #include <uORB/topics/airspeed.h>
 #include <uORB/topics/rc_parameter_map.h>
 
- #include <uORB/topics/pump_controller.h>		// Getting the signal from the Raspberry pi
-#include <uORB/topics/pump_status.h>			// To publish actual speed of the pump
-#include <uORB/topics/vehicle_status.h>			// Offboard conrol on?
-#include <uORB/topics/vehicle_local_position.h>
-
 /**
  * Analog layout:
  * FMU:
@@ -234,9 +229,6 @@ private:
 	int 		_params_sub;			/**< notification of parameter updates */
 	int		_rc_parameter_map_sub;			/**< rc parameter map subscription */
 	int 		_manual_control_sub;			/**< notification of manual control updates */
-	int 		_vehicle_status_sub;
-	int 		_vehicle_local_pos_sub;
-	int 		_pump_control_sub;
 
 	orb_advert_t	_sensor_pub;			/**< combined sensor data topic */
 	orb_advert_t	_manual_control_pub;		/**< manual control signal topic */
@@ -245,14 +237,8 @@ private:
 	orb_advert_t	_battery_pub;			/**< battery status */
 	orb_advert_t	_airspeed_pub;			/**< airspeed */
 	orb_advert_t	_diff_pres_pub;			/**< differential_pressure */
-	orb_advert_t	_pump_status_pub;
 
 	perf_counter_t	_loop_perf;			/**< loop performance counter */
-
-	struct pump_status_s pump_status;
-	struct vehicle_status_s vehicle_status;
-	struct vehicle_local_position_s local_pos;
-	struct pump_controller_s pump_control;
 
 	struct rc_channels_s _rc;			/**< r/c channel data */
 	struct battery_status_s _battery_status;	/**< battery status */
@@ -482,10 +468,6 @@ private:
 	 */
 	void		adc_poll(struct sensor_combined_s &raw);
 
-	void		vehicle_status_poll();
-	void 		vehicle_local_position_poll();
-	void 		pump_control_poll();
-
 	/**
 	 * Shim for calling task_main from task_create.
 	 */
@@ -529,9 +511,6 @@ Sensors::Sensors() :
 	_params_sub(-1),
 	_rc_parameter_map_sub(-1),
 	_manual_control_sub(-1),
-	_vehicle_status_sub(-1),
-	_vehicle_local_pos_sub(-1),
-	_pump_control_sub(-1),
 
 	/* publications */
 	_sensor_pub(-1),
@@ -541,7 +520,6 @@ Sensors::Sensors() :
 	_battery_pub(-1),
 	_airspeed_pub(-1),
 	_diff_pres_pub(-1),
-	_pump_status_pub(-1),
 
 	/* performance counters */
 	_loop_perf(perf_alloc(PC_ELAPSED, "sensor task update")),
@@ -556,11 +534,6 @@ Sensors::Sensors() :
 	memset(&_rc, 0, sizeof(_rc));
 	memset(&_diff_pres, 0, sizeof(_diff_pres));
 	memset(&_rc_parameter_map, 0, sizeof(_rc_parameter_map));
-
-	memset(&vehicle_status, 0, sizeof(vehicle_status));
-	memset(&local_pos, 0, sizeof(local_pos));
-	memset(&pump_status, 0, sizeof(pump_status));
-	memset(&pump_control, 0, sizeof(pump_control));
 
 	/* basic r/c parameters */
 	for (unsigned i = 0; i < _rc_max_chan_count; i++) {
@@ -2042,42 +2015,6 @@ Sensors::rc_poll()
 			manual.aux4 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_4, -1.0, 1.0);
 			manual.aux5 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_5, -1.0, 1.0);
 
-			if(vehicle_status.nav_state == vehicle_status.NAVIGATION_STATE_OFFBOARD){
-				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy) ;
-				manual.aux2 = vel / 3.0f * (pump_control.sprayer_speed_sp + 1.0f) -1.0f ;
-				if (manual.aux2 > 1.0f)
-				{
-					manual.aux2 = 1.0f;
-				}
-				if (manual.aux2 < -1.0f)
-				{
-					manual.aux2 = -1.0f;
-				}
-
-				manual.aux1 = pump_control.pump_speed_sp;
-			}else{
-				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy);
-//				float vel_perc = vel / 3.0f;
-				manual.aux2 = (vel / 6.0f + 0.5f) * (manual.aux2 + 1.0f) -1.0f ;
-//				manual.aux2 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_2, -1.0, vel_perc);
-				if (manual.aux2 > 1.0f)
-				{
-					manual.aux2 = 1.0f;
-				}
-				if (manual.aux2 < -1.0f)
-				{
-					manual.aux2 = -1.0f;
-				}
-			}
-			pump_status.pump_speed = (manual.aux1 + 1.0f) / 2.0f * 100.0f;
-			pump_status.sprayer_speed = (manual.aux2 + 1.0f) / 2.0f * 100.0f;
-
-			if(_pump_status_pub > 0) {
-				orb_publish(ORB_ID(pump_status),_pump_status_pub, &pump_status);
-			} else {
-				_pump_status_pub = orb_advertise(ORB_ID(pump_status), &pump_status);
-			}
-
 			/* mode switches */
 			manual.mode_switch = get_rc_sw3pos_position (rc_channels_s::RC_CHANNELS_FUNCTION_MODE, _parameters.rc_auto_th, _parameters.rc_auto_inv, _parameters.rc_assist_th, _parameters.rc_assist_inv);
 			manual.posctl_switch = get_rc_sw2pos_position (rc_channels_s::RC_CHANNELS_FUNCTION_POSCTL, _parameters.rc_posctl_th, _parameters.rc_posctl_inv);
@@ -2125,39 +2062,6 @@ Sensors::rc_poll()
 				last_rc_to_param_map_time = hrt_absolute_time();
 			}
 		}
-	}
-}
-
-void		
-Sensors::vehicle_status_poll()
-{
-	bool updated;
-	orb_check(_vehicle_status_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(vehicle_status), _vehicle_status_sub, &vehicle_status);
-	}
-}
-
-void 		
-Sensors::vehicle_local_position_poll()
-{
-	bool updated;
-	orb_check(_vehicle_local_pos_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(vehicle_local_position), _vehicle_local_pos_sub, &local_pos);
-	}
-}
-
-void 		
-Sensors::pump_control_poll()
-{
-	bool updated;
-	orb_check(_pump_control_sub, &updated);
-
-	if (updated) {
-		orb_copy(ORB_ID(pump_controller), _pump_control_sub, &pump_control);
 	}
 }
 
@@ -2213,10 +2117,6 @@ Sensors::task_main()
 	_params_sub = orb_subscribe(ORB_ID(parameter_update));
 	_rc_parameter_map_sub = orb_subscribe(ORB_ID(rc_parameter_map));
 	_manual_control_sub = orb_subscribe(ORB_ID(manual_control_setpoint));
-
-	_vehicle_status_sub = orb_subscribe(ORB_ID(vehicle_status));
-	_vehicle_local_pos_sub = orb_subscribe(ORB_ID(vehicle_local_position));
-	_pump_control_sub = orb_subscribe(ORB_ID(pump_controller));
 
 	/* rate limit vehicle status updates to 5Hz */
 	orb_set_interval(_vcontrol_mode_sub, 200);
@@ -2302,10 +2202,6 @@ Sensors::task_main()
 		accel_poll(raw);
 		mag_poll(raw);
 		baro_poll(raw);
-
-		vehicle_status_poll();
-		vehicle_local_position_poll();
-		pump_control_poll();
 
 		/* work out if main gyro timed out and fail over to alternate gyro */
 		if (hrt_elapsed_time(&raw.timestamp) > 20 * 1000) {

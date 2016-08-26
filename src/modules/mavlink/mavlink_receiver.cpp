@@ -128,7 +128,6 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_offboard_setpoint_pub(-1),   //initialize publisher, by Clarence
 	_offboard_setpoint_confirm_pub(-1),   //initialize publisher, by Clarence
 	_extra_function_pub(-1),    //by CJ
-	_pump_controller_pub(-1),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_hil_frames(0),
 	_old_timestamp(0),
@@ -234,9 +233,6 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	        break; 
 	case MAVLINK_MSG_ID_OFFBOARD_SETPOINT_CONFIRM:
 	        handle_message_offboard_setpoint_confirm(msg);
-	        break; 
-	case MAVLINK_MSG_ID_PUMP_CONTROLLER:
-	        handle_message_pump_controller(msg);
 	        break; 
 	//add by CJ
 	case MAVLINK_MSG_ID_EXTRA_FUNCTION:
@@ -1677,7 +1673,7 @@ void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
 
 	sonar_distance_s distance;
 	memset(&distance, 0, sizeof(distance));
-        	//set values 
+	//set values 
 	distance.sonar_front = values.sonar_front;
 	distance.sonar_behind = values.sonar_behind;
 	distance.sonar_left = values.sonar_left;
@@ -1687,7 +1683,7 @@ void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
 	distance.sonar_cam = values.sonar_cam;
         
         //publish
-        	if (_sonar_distance_pub == -1) {
+	if (_sonar_distance_pub == -1) {
 		_sonar_distance_pub = orb_advertise(ORB_ID(sonar_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(sonar_distance), _sonar_distance_pub, &distance);
@@ -1708,31 +1704,10 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 	distance.laser_y = values.laser_y;
         
         //publish
-        	if (_laser_distance_pub == -1) {
+	if (_laser_distance_pub == -1) {
 		_laser_distance_pub = orb_advertise(ORB_ID(laser_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);
-	}
-}
-
-void MavlinkReceiver::handle_message_pump_controller(mavlink_message_t *msg)
-{
-	mavlink_pump_controller_t pump;
-	mavlink_msg_pump_controller_decode(msg, &pump);
-
-	struct pump_controller_s p;
-	memset(&p, 0, sizeof(p));
-
-	p.pump_speed_sp = pump.pump_speed_sp;
-	p.sprayer_speed_sp = pump.spray_speed_sp;
-
-	if (_pump_controller_pub == -1)
-	{
-		_pump_controller_pub = orb_advertise(ORB_ID(pump_controller), &p);
-	}
-	else
-	{
-		orb_publish(ORB_ID(pump_controller), _pump_controller_pub, &p);
 	}
 }
 

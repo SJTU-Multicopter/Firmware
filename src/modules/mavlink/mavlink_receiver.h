@@ -77,7 +77,6 @@
 #include <uORB/topics/laser_distance.h> //added by Clarence
 #include <uORB/topics/offboard_setpoint.h> //added by Clarence
 #include <uORB/topics/offboard_setpoint_confirm.h> //added by Clarence
-#include <uORB/topics/pump_controller.h>
 #include <uORB/topics/extra_function.h>  //add by CJ
 #include "mavlink_ftp.h"
 
@@ -144,7 +143,6 @@ private:
 	void handle_message_laser_distance(mavlink_message_t *msg);//for laser, Clarence
 	void handle_message_offboard_setpoint(mavlink_message_t *msg);//for field, Clarence
 	void handle_message_offboard_setpoint_confirm(mavlink_message_t *msg);//for field, Clarence
-	void handle_message_pump_controller(mavlink_message_t *msg);
 	void handle_message_extra_function(mavlink_message_t *msg); //add by CJ
 	void *receive_thread(void *arg);
 
@@ -206,7 +204,6 @@ private:
 	orb_advert_t _offboard_setpoint_pub; //publisher for field Clarence
 	orb_advert_t _offboard_setpoint_confirm_pub; //publisher for field Clarence
 	orb_advert_t _extra_function_pub; //add by CJ
-	orb_advert_t _pump_controller_pub;
 	int _control_mode_sub;
 	int _hil_frames;
 	uint64_t _old_timestamp;

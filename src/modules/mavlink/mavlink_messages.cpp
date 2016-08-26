@@ -72,8 +72,6 @@
 #include <uORB/topics/offboard_setpoint.h> //for field_size, by Clarence
 #include <uORB/topics/offboard_setpoint_confirm.h> //for field_size, by Clarence
 #include <uORB/topics/extra_function.h>  //add by CJ
-#include <uORB/topics/pump_status.h>
-#include <uORB/topics/pump_controller.h>
 #include <drivers/drv_rc_input.h>
 #include <drivers/drv_pwm_output.h>
 #include <drivers/drv_range_finder.h>
@@ -2567,65 +2565,6 @@ protected:
          
 };
 
-class MavlinkStreamPumpStatus : public MavlinkStream
-{
-public:
-	const char *get_name() const
-	{
-		return MavlinkStreamPumpStatus::get_name_static();
-	}
-
-	static const char *get_name_static()
-	{
-		return "PUMP_STATUS";
-	}
-
-	uint8_t get_id()
-	{
-		return MAVLINK_MSG_ID_PUMP_STATUS;
-	}
-
-	static MavlinkStream *new_instance(Mavlink *mavlink)
-	{
-		return new MavlinkStreamPumpStatus(mavlink);
-	}
-
-	unsigned get_size()
-	{
-		return MAVLINK_MSG_ID_PUMP_STATUS_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
-	}
-private:
-	MavlinkOrbSubscription *_pump_status_sub;
-
-	/* do not allow top copying this class */
-	MavlinkStreamPumpStatus(MavlinkStreamPumpStatus &);
-	MavlinkStreamPumpStatus& operator = (const MavlinkStreamPumpStatus &);
-
-protected:
-	explicit MavlinkStreamPumpStatus(Mavlink *mavlink) : MavlinkStream(mavlink),
-		_pump_status_sub(_mavlink->add_orb_subscription(ORB_ID(pump_status)))
-	{}
-
-	/*explicit MavlinkStreamPumpStatus(Mavlink *mavlink) : MavlinkStream(mavlink),
-		_pump_status_sub(_mavlink->add_orb_subscription(ORB_ID(pump_controller)))
-	{}
-*/
-	void send(const hrt_abstime t)
-	{
-		struct pump_status_s status;
-//		struct pump_controller_s status;
-		bool updated = _pump_status_sub->update(&status);
-
-		if(updated) {
-			mavlink_pump_status_t  msg;
-
-			msg.pump_speed = status.pump_speed;
-			msg.spray_speed = status.sprayer_speed;
-
-			_mavlink->send_message(MAVLINK_MSG_ID_PUMP_STATUS, &msg);
-		}		
-	} 
-};
 const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static),
 	new StreamListItem(&MavlinkStreamStatustext::new_instance, &MavlinkStreamStatustext::get_name_static),
@@ -2664,7 +2603,6 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamLaserDistance::new_instance, &MavlinkStreamLaserDistance::get_name_static),
 	new StreamListItem(&MavlinkStreamOffboardSetpoint::new_instance, &MavlinkStreamOffboardSetpoint::get_name_static),
 	new StreamListItem(&MavlinkStreamOffboardSetpointConfirm::new_instance, &MavlinkStreamOffboardSetpointConfirm::get_name_static),
-	new StreamListItem(&MavlinkStreamPumpStatus::new_instance, &MavlinkStreamPumpStatus::get_name_static),
 	new StreamListItem(&MavlinkStreamExtraFunction::new_instance, &MavlinkStreamExtraFunction::get_name_static),
 	nullptr
 };
