@@ -1470,8 +1470,8 @@ Mavlink::task_main(int argc, char *argv[])
 	/* COMMAND_LONG stream: use high rate to avoid commands skipping */
 	configure_stream("COMMAND_LONG", 100.0f);
 
-		/*by Clarence*/
-	//configure_stream("SONAR_DISTANCE", 2.0f);
+	/*by Clarence*/
+	configure_stream("SONAR_DISTANCE", 2.0f);
 	configure_stream("LASER_DISTANCE", 2.0f);
 	configure_stream("OFFBOARD_SETPOINT", 2.0f);
    	configure_stream("OFFBOARD_SETPOINT_CONFIRM", 2.0f);

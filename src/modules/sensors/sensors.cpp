@@ -2042,7 +2042,7 @@ Sensors::rc_poll()
 			manual.aux4 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_4, -1.0, 1.0);
 			manual.aux5 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_5, -1.0, 1.0);
 
-			if(vehicle_status.nav_state == vehicle_status.NAVIGATION_STATE_OFFBOARD){
+			/*if(vehicle_status.nav_state == vehicle_status.NAVIGATION_STATE_OFFBOARD){
 				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy) ;
 				manual.aux2 = vel / 3.0f * (pump_control.sprayer_speed_sp + 1.0f) -1.0f ;
 				if (manual.aux2 > 1.0f)
@@ -2068,6 +2068,34 @@ Sensors::rc_poll()
 				{
 					manual.aux2 = -1.0f;
 				}
+			}*/
+
+			if(vehicle_status.nav_state == vehicle_status.NAVIGATION_STATE_OFFBOARD){
+				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy) ;
+				manual.aux1 = vel / 3.0f * (pump_control.pump_speed_sp + 1.0f) -1.0f ;
+				if (manual.aux1 > 1.0f)
+				{
+					manual.aux1 = 1.0f;
+				}
+				if (manual.aux1 < -1.0f)
+				{
+					manual.aux1 = -1.0f;
+				}
+
+				manual.aux2 = pump_control.sprayer_speed_sp;
+			}else{
+				float vel = sqrt(local_pos.vx * local_pos.vx + local_pos.vy * local_pos.vy);
+//				float vel_perc = vel / 3.0f;
+				manual.aux1 = (vel / 6.0f + 0.5f) * (manual.aux1 + 1.0f) -1.0f ;
+//				manual.aux2 = get_rc_value (rc_channels_s::RC_CHANNELS_FUNCTION_AUX_2, -1.0, vel_perc);
+				if (manual.aux1 > 1.0f)
+				{
+					manual.aux1 = 1.0f;
+				}
+				if (manual.aux1 < -1.0f)
+				{
+					manual.aux1 = -1.0f;
+				}
 			}
 			pump_status.pump_speed = (manual.aux1 + 1.0f) / 2.0f * 100.0f;
 			pump_status.sprayer_speed = (manual.aux2 + 1.0f) / 2.0f * 100.0f;
@@ -2077,6 +2105,7 @@ Sensors::rc_poll()
 			} else {
 				_pump_status_pub = orb_advertise(ORB_ID(pump_status), &pump_status);
 			}
+			
 
 			/* mode switches */
 			manual.mode_switch = get_rc_sw3pos_position (rc_channels_s::RC_CHANNELS_FUNCTION_MODE, _parameters.rc_auto_th, _parameters.rc_auto_inv, _parameters.rc_assist_th, _parameters.rc_assist_inv);

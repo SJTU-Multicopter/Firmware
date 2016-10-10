@@ -1687,7 +1687,7 @@ void MavlinkReceiver::handle_message_sonar_distance(mavlink_message_t *msg)
 	distance.sonar_cam = values.sonar_cam;
         
         //publish
-        	if (_sonar_distance_pub == -1) {
+	if (_sonar_distance_pub == -1) {
 		_sonar_distance_pub = orb_advertise(ORB_ID(sonar_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(sonar_distance), _sonar_distance_pub, &distance);
@@ -1708,7 +1708,7 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 	distance.laser_y = values.laser_y;
         
         //publish
-        	if (_laser_distance_pub == -1) {
+	if (_laser_distance_pub == -1) {
 		_laser_distance_pub = orb_advertise(ORB_ID(laser_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);
