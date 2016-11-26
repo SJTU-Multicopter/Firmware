@@ -125,6 +125,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_time_offset_pub(-1),
 	_sonar_distance_pub(-1),   //initialize publisher, by Clarence
 	_laser_distance_pub(-1),   //initialize publisher, by Clarence
+	_distance_sensor_pub(-1), 
 	_offboard_setpoint_pub(-1),   //initialize publisher, by Clarence
 	_offboard_setpoint_confirm_pub(-1),   //initialize publisher, by Clarence
 	_extra_function_pub(-1),    //by CJ
@@ -1698,6 +1699,8 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 {
 	mavlink_laser_distance_t values;
 	mavlink_msg_laser_distance_decode(msg, &values);
+	
+	uint64_t timestamp = hrt_absolute_time();
 
 	laser_distance_s distance;
 	memset(&distance, 0, sizeof(distance));
@@ -1706,12 +1709,26 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 	distance.angle = values.angle;
 	distance.laser_x = values.laser_x;
 	distance.laser_y = values.laser_y;
+
+	distance_sensor_s lidar;
+	memset(&lidar, 0, sizeof(lidar));
+
+	lidar.timestamp = timestamp;
+	lidar.current_distance = values.laser_x;
+	lidar.min_distance = 1.5f;
+	lidar.max_distance = 50.0f;
         
         //publish
 	if (_laser_distance_pub == -1) {
 		_laser_distance_pub = orb_advertise(ORB_ID(laser_distance), &distance);
 	} else {
 		orb_publish(ORB_ID(laser_distance), _laser_distance_pub, &distance);
+	}
+
+	if (_distance_sensor_pub == -1) {
+		_distance_sensor_pub = orb_advertise(ORB_ID(distance_sensor), &lidar);
+	} else {
+		orb_publish(ORB_ID(distance_sensor), _distance_sensor_pub, &lidar);
 	}
 }
 
