@@ -58,6 +58,7 @@
 #include <uORB/topics/actuator_controls_2.h>
 #include <uORB/topics/actuator_controls_3.h>
 #include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_local_position.h>
@@ -82,6 +83,10 @@
 #define PUB_INTERVAL 10000	// limit publish rate to 100 Hz
 #define EST_BUF_SIZE 250000 / PUB_INTERVAL		// buffer size is 0.5s
 
+#define Lidar_calibration_offset 0.0f
+#define Lidar_err 0.2f
+#define W_z_lidar 1.0f
+
 static bool thread_should_exit = false; /**< Deamon exit flag */
 static bool thread_running = false; /**< Deamon status flag */
 static int position_estimator_inav_task; /**< Handle of deamon task / thread */
@@ -93,6 +98,8 @@ static const hrt_abstime flow_topic_timeout = 1000000;	// optical flow topic tim
 static const hrt_abstime sonar_timeout = 150000;	// sonar timeout = 150ms
 static const hrt_abstime sonar_valid_timeout = 1000000;	// estimate sonar distance during this time after sonar loss
 static const hrt_abstime xy_src_timeout = 2000000;	// estimate position during this time after position sources loss
+static const hrt_abstime lidar_timeout = 150000;	// lidar timeout = 150ms
+static const hrt_abstime lidar_valid_timeout = 1000000;	// estimate lidar distance during this time after lidar loss
 static const uint32_t updates_counter_len = 1000000;
 static const float max_flow = 1.0f;	// max flow value that can be used, rad/s
 
@@ -252,6 +259,10 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	float surface_offset = 0.0f;	// ground level offset from reference altitude
 	float surface_offset_rate = 0.0f;	// surface offset change rate
 
+
+	hrt_abstime lidar_time = 0;			// time of last lidar measurement (not filtered)
+	hrt_abstime lidar_valid_time = 0;	// time of last lidar measurement used for correction (filtered)
+
 	hrt_abstime accel_timestamp = 0;
 	hrt_abstime baro_timestamp = 0;
 
@@ -308,6 +319,15 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	bool flow_accurate = false;		// flow should be accurate (this flag not updated if flow_valid == false)
 	bool vision_valid = false;
 
+	float dist_ground = 0.0f;		//variables for lidar altitude estimation
+	float corr_lidar = 0.0f;
+	float lidar_offset = 0.0f;
+	int lidar_offset_count = 0;
+	bool lidar_first = true;
+	bool use_lidar = false;
+	bool use_lidar_prev = false;
+	bool lidar_valid = false;		// lidar is valid
+
 	/* declare and safely initialize all structs */
 	struct actuator_controls_s actuator;
 	memset(&actuator, 0, sizeof(actuator));
@@ -331,6 +351,8 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	memset(&global_pos, 0, sizeof(global_pos));
 	struct test_s test;
 	memset(&test, 0, sizeof(test));
+	struct distance_sensor_s lidar;
+	memset(&lidar, 0, sizeof(lidar));
 
 	/* subscribe */
 	int parameter_update_sub = orb_subscribe(ORB_ID(parameter_update));
@@ -342,6 +364,7 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 	int vehicle_gps_position_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 	int vision_position_estimate_sub = orb_subscribe(ORB_ID(vision_position_estimate));
 	int home_position_sub = orb_subscribe(ORB_ID(home_position));
+	int distance_sensor_sub = orb_subscribe(ORB_ID(distance_sensor));
 
 	/* advertise */
 	orb_advert_t vehicle_local_position_pub = orb_advertise(ORB_ID(vehicle_local_position), &local_pos);
@@ -489,6 +512,60 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 					baro_updates++;
 				}
 			}
+
+			/* lidar alt estimation */
+			orb_check(distance_sensor_sub, &updated);
+
+			/* update lidar separately, needed by terrain estimator */
+			if (updated) {
+				orb_copy(ORB_ID(distance_sensor), distance_sensor_sub, &lidar);
+				lidar.current_distance += Lidar_calibration_offset;
+			}
+
+			if (updated) { //check if altitude estimation for lidar is enabled and new sensor data
+
+				if ((PX4_R(att.R, 2, 2) > 0.7f) && lidar.current_distance > lidar.min_distance 
+					&& lidar.current_distance < lidar.max_distance) {
+
+					if (!use_lidar_prev && use_lidar) {
+						lidar_first = true;
+					}
+
+					use_lidar_prev = use_lidar;
+
+					lidar_time = t;
+					dist_ground = lidar.current_distance * PX4_R(att.R, 2, 2); //vertical distance
+
+					if (lidar_first) {
+						lidar_first = false;
+						lidar_offset = dist_ground + z_est[0];
+						mavlink_log_info(mavlink_fd, "[inav] LIDAR: new ground offset");
+						warnx("[inav] LIDAR: new ground offset");
+					}
+
+					corr_lidar = lidar_offset - dist_ground - z_est[0];
+
+					if (fabsf(corr_lidar) > Lidar_err) { //check for spike
+						corr_lidar = 0;
+						lidar_valid = false;
+						lidar_offset_count++;
+
+						if (lidar_offset_count > 3) { //if consecutive bigger/smaller measurements -> new ground offset -> reinit
+							lidar_first = true;
+							lidar_offset_count = 0;
+						}
+
+					} else {
+						corr_lidar = lidar_offset - dist_ground - z_est[0];
+						lidar_valid = true;
+						lidar_offset_count = 0;
+						lidar_valid_time = t;
+					}
+				} else {
+					lidar_valid = false;
+				}
+			}
+
 
 			/* optical flow */
 			orb_check(optical_flow_sub, &updated);
@@ -855,6 +932,13 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			sonar_valid = false;
 		}
 
+		/* check for lidar measurement timeout */
+		if (lidar_valid && (t > (lidar_time + lidar_timeout))) {
+			lidar_valid = false;
+			warnx("LIDAR timeout");
+			mavlink_log_info(mavlink_fd, "[inav] LIDAR timeout");
+		}
+
 		float dt = t_prev > 0 ? (t - t_prev) / 1000000.0f : 0.0f;
 		dt = fmaxf(fminf(0.02, dt), 0.002);		// constrain dt from 2 to 20 ms
 		t_prev = t;
@@ -867,6 +951,12 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			epv += 0.005f * dt;	// add 1m to EPV each 200s (baro drift)
 		}
 
+		/* use LIDAR if it's valid and lidar altitude estimation is enabled */
+
+		use_lidar = lidar_valid;
+
+		bool dist_bottom_valid = (t < lidar_valid_time + lidar_valid_timeout);
+
 		/* use GPS if it's valid and reference position initialized */
 		bool use_gps_xy = ref_inited && gps_valid && params.w_xy_gps_p > MIN_VALID_W;
 		bool use_gps_z = ref_inited && gps_valid && params.w_z_gps_p > MIN_VALID_W;
@@ -878,18 +968,6 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 
 		bool can_estimate_xy = (eph < max_eph_epv) || use_gps_xy || use_flow || use_vision_xy;
 
-		bool dist_bottom_valid = (t < sonar_valid_time + sonar_valid_timeout);
-
-		if (dist_bottom_valid) {
-			/* surface distance prediction */
-			surface_offset += surface_offset_rate * dt;
-
-			/* surface distance correction */
-			if (sonar_valid) {
-				surface_offset_rate -= corr_sonar * 0.5f * params.w_z_sonar * params.w_z_sonar * dt;
-				surface_offset -= corr_sonar * params.w_z_sonar * dt;
-			}
-		}
 
 		float w_xy_gps_p = params.w_xy_gps_p * w_gps_xy;
 		float w_xy_gps_v = params.w_xy_gps_v * w_gps_xy;
@@ -980,7 +1058,13 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 			accel_bias_corr[1] -= corr_flow[1] * params.w_xy_flow;
 		}
 
-		accel_bias_corr[2] -= corr_baro * params.w_z_baro * params.w_z_baro;
+		if (use_lidar) {
+			accel_bias_corr[2] -= corr_lidar * W_z_lidar * W_z_lidar;
+		} else {
+			accel_bias_corr[2] -= corr_baro * params.w_z_baro * params.w_z_baro;
+		}
+
+		//accel_bias_corr[2] -= corr_baro * params.w_z_baro * params.w_z_baro;
 
 		/* transform error vector from NED frame to body frame */
 		for (int i = 0; i < 3; i++) {
@@ -1004,7 +1088,13 @@ int position_estimator_inav_thread_main(int argc, char *argv[])
 		}
 
 		/* inertial filter correction for altitude */
-		inertial_filter_correct(corr_baro, dt, z_est, 0, params.w_z_baro);
+		//inertial_filter_correct(corr_baro, dt, z_est, 0, params.w_z_baro);
+		if (use_lidar) {
+			inertial_filter_correct(corr_lidar, dt, z_est, 0, W_z_lidar);
+
+		} else {
+			inertial_filter_correct(corr_baro, dt, z_est, 0, params.w_z_baro);
+		}
 
 		if (use_gps_z) {
 			epv = fminf(epv, gps.epv);

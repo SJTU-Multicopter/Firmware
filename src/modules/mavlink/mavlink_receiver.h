@@ -75,6 +75,7 @@
 #include <uORB/topics/time_offset.h>
 #include <uORB/topics/sonar_distance.h> //added by Clarence
 #include <uORB/topics/laser_distance.h> //added by Clarence
+#include <uORB/topics/distance_sensor.h> //added by CJ
 #include <uORB/topics/offboard_setpoint.h> //added by Clarence
 #include <uORB/topics/offboard_setpoint_confirm.h> //added by Clarence
 #include <uORB/topics/pump_controller.h>
@@ -203,6 +204,7 @@ private:
 	orb_advert_t _time_offset_pub;
 	orb_advert_t _sonar_distance_pub; //publisher for sonar
 	orb_advert_t _laser_distance_pub; //publisher for laser
+	orb_advert_t _distance_sensor_pub; //publisher for distance sensor
 	orb_advert_t _offboard_setpoint_pub; //publisher for field Clarence
 	orb_advert_t _offboard_setpoint_confirm_pub; //publisher for field Clarence
 	orb_advert_t _extra_function_pub; //add by CJ
