@@ -1715,8 +1715,8 @@ void MavlinkReceiver::handle_message_laser_distance(mavlink_message_t *msg)
 
 	lidar.timestamp = timestamp;
 	lidar.current_distance = values.laser_x;
-	lidar.min_distance = 1.5f;
-	lidar.max_distance = 50.0f;
+	lidar.min_distance = 0.1f;
+	lidar.max_distance = 20.0f;
         
         //publish
 	if (_laser_distance_pub == -1) {
