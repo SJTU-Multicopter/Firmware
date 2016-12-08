@@ -690,7 +690,7 @@ MulticopterPositionControl::control_manual(float dt)
 
 	//add by CJ for obstacle avoid
 	if(_manual.loiter_switch==3){
-		if((_laser.min_distance > DISTANCE_MIN) && (_laser.min_distance < SAFE_DISTANCE) && _lidar.current_distance > 1.5f){
+		if((_laser.min_distance > DISTANCE_MIN) && (_laser.min_distance < SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
 			if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
 				if(_sp_move_rate(0) > 0)
 				{
@@ -1528,7 +1528,7 @@ MulticopterPositionControl::task_main()
 		}
 
 		/* generate attitude setpoint from manual controls */
-		if(_control_mode.flag_control_manual_enabled && _control_mode.flag_control_attitude_enabled) {
+		if((_control_mode.flag_control_manual_enabled || _control_mode.flag_control_offboard_enabled) && _control_mode.flag_control_attitude_enabled) {
 
 			/* reset yaw setpoint to current position if needed */
 			if (reset_yaw_sp) {
@@ -1570,7 +1570,7 @@ MulticopterPositionControl::task_main()
 
 			//if(_extra_function.obs_avoid_enable != 0){
 			if(_manual.loiter_switch == 3){
-				if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LASER_DISTANCE) && _lidar.current_distance > 1.5f){
+				if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LASER_DISTANCE) && _lidar.current_distance > 1.0f){
 					if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
 						_att_sp.pitch_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
 						_att_sp.roll_body = 0.0f;
@@ -1608,18 +1608,18 @@ MulticopterPositionControl::task_main()
 						_att_sp.roll_body = 0.0f;
 					}
 
-					if(_att_sp.pitch_body > math::radians(35.0f)){
-						_att_sp.pitch_body  = math::radians(35.0f);
+					if(_att_sp.pitch_body > math::radians(30.0f)){
+						_att_sp.pitch_body  = math::radians(30.0f);
 					}
-					if(_att_sp.pitch_body < -math::radians(35.0f)){
-						_att_sp.pitch_body  = -math::radians(35.0f);
+					if(_att_sp.pitch_body < -math::radians(30.0f)){
+						_att_sp.pitch_body  = -math::radians(30.0f);
 					}
 
-					if(_att_sp.roll_body > math::radians(35.0f)){
-						_att_sp.roll_body  = math::radians(35.0f);
+					if(_att_sp.roll_body > math::radians(30.0f)){
+						_att_sp.roll_body  = math::radians(30.0f);
 					}
-					if(_att_sp.roll_body < -math::radians(35.0f)){
-						_att_sp.roll_body  = -math::radians(35.0f);
+					if(_att_sp.roll_body < -math::radians(30.0f)){
+						_att_sp.roll_body  = -math::radians(30.0f);
 					}
 
 					_is_obstacle_avoiding = true;
