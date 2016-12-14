@@ -647,8 +647,7 @@ MavlinkReceiver::handle_message_set_position_target_local_ned(mavlink_message_t 
 						pos_sp_triplet.current.a_x = set_position_target_local_ned.afx;
 						pos_sp_triplet.current.a_y = set_position_target_local_ned.afy;
 						pos_sp_triplet.current.a_z = set_position_target_local_ned.afz;
-						pos_sp_triplet.current.acceleration_is_force =
-						is_force_sp;
+						pos_sp_triplet.current.acceleration_is_force = is_force_sp;
 
 					} else {
 						pos_sp_triplet.current.acceleration_valid = false;

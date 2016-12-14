@@ -2684,7 +2684,8 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = !offboard_control_mode.ignore_velocity ||
 			!offboard_control_mode.ignore_position;
 
-		control_mode.flag_control_position_enabled = !offboard_control_mode.ignore_position;
+		control_mode.flag_control_position_enabled = !offboard_control_mode.ignore_position || 
+			!offboard_control_mode.ignore_velocity;
 
 		control_mode.flag_control_altitude_enabled = !offboard_control_mode.ignore_velocity ||
 			!offboard_control_mode.ignore_position;

@@ -94,7 +94,7 @@
 #define DISTANCE_MIN				0.5f
 #define LASER_DISTANCE              	   	3.0f       //laser safe distance on attitude mode
 #define SAFE_DISTANCE              	   	4.0f       //laser safe distance on position control mode
-#define LASER_P                            	30.0f  //parameter P of laser obstacle avoidance
+#define LASER_P                            	35.0f  //parameter P of laser obstacle avoidance
 
 /**
  * Multicopter position control app start / stop handling function
@@ -837,12 +837,20 @@ MulticopterPositionControl::control_offboard(float dt)
 			_pos_sp(1) = _pos_sp_triplet.current.y;
 		} else if (_control_mode.flag_control_velocity_enabled && _pos_sp_triplet.current.velocity_valid) {
 			/* control velocity */
+
 			/* reset position setpoint to current position if needed */
+			if(_is_obstacle_avoiding)
+			{
+				_reset_pos_sp = true;
+				_is_obstacle_avoiding = false;
+			}
 			reset_pos_sp();
 
 			/* set position setpoint move rate */
 			_sp_move_rate(0) = _pos_sp_triplet.current.vx;
 			_sp_move_rate(1) = _pos_sp_triplet.current.vy;
+
+			
 		}
 
 		if (_pos_sp_triplet.current.yaw_valid) {
@@ -856,10 +864,11 @@ MulticopterPositionControl::control_offboard(float dt)
 			_pos_sp(2) = _pos_sp_triplet.current.z;
 		} else if (_control_mode.flag_control_climb_rate_enabled && _pos_sp_triplet.current.velocity_valid) {
 			/* reset alt setpoint to current altitude if needed */
-			reset_alt_sp();
+			//reset_alt_sp();
 
 			/* set altitude setpoint move rate */
-			_sp_move_rate(2) = _pos_sp_triplet.current.vz;
+			//_sp_move_rate(2) = _pos_sp_triplet.current.vz;
+			_pos_sp(2) = _pos_sp_triplet.current.vz;
 		}
 
 		/* feed forward setpoint move rate with weight vel_ff */
