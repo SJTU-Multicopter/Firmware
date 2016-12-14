@@ -91,11 +91,17 @@
 #define SIGMA					0.000001f
 #define MIN_DIST				0.01f
 #define MANUAL_THROTTLE_MAX_MULTICOPTER		0.9f
-#define DISTANCE_MIN				0.5f
-#define LASER_DISTANCE              	   	3.0f       //laser safe distance on attitude mode
-#define SAFE_DISTANCE              	   	4.0f       //laser safe distance on position control mode
-#define LASER_P                            	35.0f  //parameter P of laser obstacle avoidance
 
+#define DISTANCE_MIN				0.5f
+#define LARGE_SAFE_DISTANCE              	4.0f       //laser safe distance on attitude mode
+#define LOW_SAFE_DISTANCE			2.0f 	   //laser sage distance for any condition
+#define POS_CTL_SAFE_DISTANCE              	4.0f       //laser safe distance on position control mode
+#define K_OBSTACLE_LOW				20.0f
+#define K_OBSTACLE_HIGH				40.0f
+
+#define OBSTACLE_CLOSE				1
+#define OBSTACLE_AWAY				2
+#define LOW_SPEED				3
 /**
  * Multicopter position control app start / stop handling function
  *
@@ -690,7 +696,7 @@ MulticopterPositionControl::control_manual(float dt)
 
 	//add by CJ for obstacle avoid
 	if(_manual.loiter_switch==3){
-		if((_laser.min_distance > DISTANCE_MIN) && (_laser.min_distance < SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
+		if((_laser.min_distance > DISTANCE_MIN) && (_laser.min_distance < POS_CTL_SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
 			if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
 				if(_sp_move_rate(0) > 0)
 				{
@@ -1579,60 +1585,210 @@ MulticopterPositionControl::task_main()
 
 			//if(_extra_function.obs_avoid_enable != 0){
 			if(_manual.loiter_switch == 3){
-				if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LASER_DISTANCE) && _lidar.current_distance > 1.0f){
-					if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
-						_att_sp.pitch_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = 0.0f;
-					}
-					if(_laser.angle >= M_PI_F/8 && _laser.angle < M_PI_F*3/8 ){
-						_att_sp.pitch_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*3/8 && _laser.angle < M_PI_F*5/8 ){
-						_att_sp.pitch_body = 0.0f;
-						_att_sp.roll_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*5/8 && _laser.angle < M_PI_F*7/8 ){
-						_att_sp.pitch_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*7/8 && _laser.angle < M_PI_F*9/8){
-						_att_sp.pitch_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = 0.0f;
-					}
-					if(_laser.angle >= M_PI_F*9/8 && _laser.angle < M_PI_F*11/8){
-						_att_sp.pitch_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*11/8 && _laser.angle < M_PI_F*13/8 ){
-						_att_sp.pitch_body = 0.0f;
-						_att_sp.roll_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*13/8 && _laser.angle < M_PI_F*15/8){
-						_att_sp.pitch_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = -math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-					}
-					if(_laser.angle >= M_PI_F*15/8 && _laser.angle < M_PI_F*2 ){
-						_att_sp.pitch_body = math::radians(LASER_P/((_laser.min_distance*_laser.min_distance)+0.05f));
-						_att_sp.roll_body = 0.0f;
+				int vehicle_motion_status = 0;
+
+				float speed = sqrtf(_vel(0)*_vel(0) + _vel(1)*_vel(1));
+
+				math::Vector<3> obstacle_dir;
+				obstacle_dir(0) = cosf(_laser.angle);
+				obstacle_dir(1) = -sinf(_laser.angle);
+				obstacle_dir(2) = 0.0f;
+
+				math::Matrix<3, 3> R_yaw_sp;
+				R_yaw_sp.from_euler(0.0f, 0.0f, _att_sp.yaw_body);
+				obstacle_dir = R_yaw_sp * obstacle_dir;
+
+				float vel_obs_dot = obstacle_dir(0)*_vel(0) + obstacle_dir(1)*_vel(1);
+
+				if(speed > 0.0f && speed < 1.0f)
+				{
+					vehicle_motion_status = LOW_SPEED;
+				}else{
+					if(vel_obs_dot >= 0.0f)
+					{
+						vehicle_motion_status = OBSTACLE_CLOSE;
+					}else
+					{
+						vehicle_motion_status = OBSTACLE_AWAY;
 					}
 
-					if(_att_sp.pitch_body > math::radians(30.0f)){
-						_att_sp.pitch_body  = math::radians(30.0f);
-					}
-					if(_att_sp.pitch_body < -math::radians(30.0f)){
-						_att_sp.pitch_body  = -math::radians(30.0f);
-					}
-
-					if(_att_sp.roll_body > math::radians(30.0f)){
-						_att_sp.roll_body  = math::radians(30.0f);
-					}
-					if(_att_sp.roll_body < -math::radians(30.0f)){
-						_att_sp.roll_body  = -math::radians(30.0f);
-					}
-
-					_is_obstacle_avoiding = true;
 				}
+
+				switch(vehicle_motion_status)
+				{
+				case LOW_SPEED:	
+					if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LOW_SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
+						if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F/8 && _laser.angle < M_PI_F*3/8 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*3/8 && _laser.angle < M_PI_F*5/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*5/8 && _laser.angle < M_PI_F*7/8 ){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*7/8 && _laser.angle < M_PI_F*9/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F*9/8 && _laser.angle < M_PI_F*11/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*11/8 && _laser.angle < M_PI_F*13/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*13/8 && _laser.angle < M_PI_F*15/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*15/8 && _laser.angle < M_PI_F*2 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+
+						if(_att_sp.pitch_body > math::radians(30.0f)){
+							_att_sp.pitch_body  = math::radians(30.0f);
+						}
+						if(_att_sp.pitch_body < -math::radians(30.0f)){
+							_att_sp.pitch_body  = -math::radians(30.0f);
+						}
+
+						if(_att_sp.roll_body > math::radians(30.0f)){
+							_att_sp.roll_body  = math::radians(30.0f);
+						}
+						if(_att_sp.roll_body < -math::radians(30.0f)){
+							_att_sp.roll_body  = -math::radians(30.0f);
+						}
+
+						_is_obstacle_avoiding = true;
+					}
+					break;
+				case OBSTACLE_CLOSE:
+					if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LARGE_SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
+						if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F/8 && _laser.angle < M_PI_F*3/8 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*3/8 && _laser.angle < M_PI_F*5/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*5/8 && _laser.angle < M_PI_F*7/8 ){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*7/8 && _laser.angle < M_PI_F*9/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F*9/8 && _laser.angle < M_PI_F*11/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*11/8 && _laser.angle < M_PI_F*13/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*13/8 && _laser.angle < M_PI_F*15/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*15/8 && _laser.angle < M_PI_F*2 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_HIGH*(1/_laser.min_distance-1/LARGE_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+
+						if(_att_sp.pitch_body > math::radians(30.0f)){
+							_att_sp.pitch_body  = math::radians(30.0f);
+						}
+						if(_att_sp.pitch_body < -math::radians(30.0f)){
+							_att_sp.pitch_body  = -math::radians(30.0f);
+						}
+
+						if(_att_sp.roll_body > math::radians(30.0f)){
+							_att_sp.roll_body  = math::radians(30.0f);
+						}
+						if(_att_sp.roll_body < -math::radians(30.0f)){
+							_att_sp.roll_body  = -math::radians(30.0f);
+						}
+
+						_is_obstacle_avoiding = true;
+					}
+					break;
+				case OBSTACLE_AWAY:
+					if((_laser.min_distance>DISTANCE_MIN)&&(_laser.min_distance<LOW_SAFE_DISTANCE) && _lidar.current_distance > 1.0f){
+						if(_laser.angle >= 0.0f && _laser.angle < M_PI_F/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F/8 && _laser.angle < M_PI_F*3/8 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*3/8 && _laser.angle < M_PI_F*5/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*5/8 && _laser.angle < M_PI_F*7/8 ){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*7/8 && _laser.angle < M_PI_F*9/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+						if(_laser.angle >= M_PI_F*9/8 && _laser.angle < M_PI_F*11/8){
+							_att_sp.pitch_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*11/8 && _laser.angle < M_PI_F*13/8 ){
+							_att_sp.pitch_body = 0.0f;
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*13/8 && _laser.angle < M_PI_F*15/8){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = -math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+						}
+						if(_laser.angle >= M_PI_F*15/8 && _laser.angle < M_PI_F*2 ){
+							_att_sp.pitch_body = math::radians(K_OBSTACLE_LOW*(1/_laser.min_distance-1/LOW_SAFE_DISTANCE)/(_laser.min_distance*_laser.min_distance));
+							_att_sp.roll_body = 0.0f;
+						}
+
+						if(_att_sp.pitch_body > math::radians(30.0f)){
+							_att_sp.pitch_body  = math::radians(30.0f);
+						}
+						if(_att_sp.pitch_body < -math::radians(30.0f)){
+							_att_sp.pitch_body  = -math::radians(30.0f);
+						}
+
+						if(_att_sp.roll_body > math::radians(30.0f)){
+							_att_sp.roll_body  = math::radians(30.0f);
+						}
+						if(_att_sp.roll_body < -math::radians(30.0f)){
+							_att_sp.roll_body  = -math::radians(30.0f);
+						}
+
+						_is_obstacle_avoiding = true;
+					}
+					break;
+				default:
+
+					break;
+				}
+
 			}
 
 			/* construct attitude setpoint rotation matrix */
