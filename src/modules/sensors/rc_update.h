@@ -112,6 +112,7 @@ private:
 
 	int		_rc_sub = -1;			/**< raw rc channels data subscription */
 	int		_rc_parameter_map_sub = -1;		/**< rc parameter map subscription */
+	int 	_aux_sub = -1; 		//gcy
 
 	orb_advert_t	_rc_pub = nullptr;		/**< raw r/c control topic */
 	orb_advert_t	_manual_control_pub = nullptr;	/**< manual control signal topic */
@@ -131,6 +132,10 @@ private:
 	math::LowPassFilter2p _filter_yaw;
 	math::LowPassFilter2p _filter_throttle;
 
+	float aux1_latest;
+	float aux2_latest;
+	float aux3_latest;
+	float aux4_latest;
 };
 
 

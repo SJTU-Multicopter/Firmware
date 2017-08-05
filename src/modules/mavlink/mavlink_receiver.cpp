@@ -139,6 +139,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_control_state_pub(nullptr),
 	_gps_inject_data_pub(nullptr),
 	_command_ack_pub(nullptr),
+	_aux_ctrl_pub(nullptr),		//gcy
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
 	_global_ref_timestamp(0),
 	_hil_frames(0),
@@ -306,6 +307,11 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_PLAY_TUNE:
 		handle_message_play_tune(msg);
 		break;
+
+	case MAVLINK_MSG_ID_AUX_CONTROL:
+		handle_message_aux_ctrl(msg);	//gcy
+		break;
+
 
 	default:
 		break;
@@ -630,11 +636,11 @@ MavlinkReceiver::handle_message_command_ack(mavlink_message_t *msg)
 
 	MavlinkCommandSender::instance().handle_mavlink_command_ack(ack, msg->sysid, msg->compid);
 
-	if (ack.result != MAV_RESULT_ACCEPTED && ack.result != MAV_RESULT_IN_PROGRESS) {
-		if (msg->compid == MAV_COMP_ID_CAMERA) {
-			PX4_WARN("Got unsuccessful result %d from camera", ack.result);
-		}
-	}
+	// if (ack.result != MAV_RESULT_ACCEPTED && ack.result != MAV_RESULT_IN_PROGRESS) {
+	// 	if (msg->compid == MAV_COMP_ID_CAMERA) {
+	// 		PX4_WARN("Got unsuccessful result %d from camera", ack.result);
+	// 	}
+	// }	//GCY
 }
 
 void
@@ -2367,6 +2373,21 @@ MavlinkReceiver::handle_message_hil_state_quaternion(mavlink_message_t *msg)
 
 	} else {
 		orb_publish(ORB_ID(control_state), _control_state_pub, &ctrl_state);
+	}
+}
+
+void MavlinkReceiver::handle_message_aux_ctrl(mavlink_message_t *msg) {	//gcy
+	mavlink_aux_control_t mavmsg = {};
+	mavlink_msg_aux_control_decode(msg, &mavmsg);
+	aux_ctrl_s auxmsg = {};
+	auxmsg.content = mavmsg.content;
+	auxmsg.auxnum = mavmsg.auxnum;
+	orb_advert_t &pub = _aux_ctrl_pub;
+	if (pub == nullptr) {
+		pub = orb_advertise(ORB_ID(aux_ctrl), &auxmsg);
+
+	} else {
+		orb_publish(ORB_ID(aux_ctrl), pub, &auxmsg);
 	}
 }
 
