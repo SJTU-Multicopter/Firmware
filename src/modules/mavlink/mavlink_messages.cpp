@@ -1454,20 +1454,20 @@ protected:
 
 			mavlink_camera_image_captured_t msg;
 
-			msg.time_boot_ms = capture.timestamp / 1000;
-			msg.time_utc = capture.timestamp_utc;
-			msg.camera_id = 1;	// FIXME : get this from uORB
-			msg.lat = capture.lat * 1e7;
-			msg.lon = capture.lon * 1e7;
-			msg.alt = capture.alt * 1e3f;
-			msg.relative_alt = capture.ground_distance * 1e3f;
-			msg.q[0] = capture.q[0];
-			msg.q[1] = capture.q[1];
-			msg.q[2] = capture.q[2];
-			msg.q[3] = capture.q[3];
-			msg.image_index = capture.seq;
-			msg.capture_result = capture.result;
-			msg.file_url[0] = '\0';
+			// msg.time_boot_ms = capture.timestamp / 1000;
+			// msg.time_utc = capture.timestamp_utc;
+			// msg.camera_id = 1;	// FIXME : get this from uORB
+			// msg.lat = capture.lat * 1e7;
+			// msg.lon = capture.lon * 1e7;
+			// msg.alt = capture.alt * 1e3f;
+			// msg.relative_alt = capture.ground_distance * 1e3f;
+			// msg.q[0] = capture.q[0];
+			// msg.q[1] = capture.q[1];
+			// msg.q[2] = capture.q[2];
+			// msg.q[3] = capture.q[3];
+			// msg.image_index = capture.seq;
+			// msg.capture_result = capture.result;
+			// msg.file_url[0] = '\0';
 
 			mavlink_msg_camera_image_captured_send_struct(_mavlink->get_channel(), &msg);
 		}
@@ -3373,10 +3373,10 @@ protected:
 				if (_control_mode_sub->update(&control_mode) && _pos_sp_triplet_sub->update(&pos_sp_triplet)) {
 					if (control_mode.flag_control_auto_enabled && pos_sp_triplet.current.valid) {
 						if (pos_sp_triplet.current.type == position_setpoint_s::SETPOINT_TYPE_TAKEOFF) {
-							_msg.landed_state = MAV_LANDED_STATE_TAKEOFF;
+							// _msg.landed_state = MAV_LANDED_STATE_TAKEOFF;
 
 						} else if (pos_sp_triplet.current.type == position_setpoint_s::SETPOINT_TYPE_LAND) {
-							_msg.landed_state = MAV_LANDED_STATE_LANDING;
+							// _msg.landed_state = MAV_LANDED_STATE_LANDING;
 						}
 					}
 				}

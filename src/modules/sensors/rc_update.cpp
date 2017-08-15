@@ -47,6 +47,9 @@
 #include <uORB/topics/actuator_controls.h>
 #include <uORB/topics/manual_control_setpoint.h>
 
+#include <uORB/topics/aux_ctrl.h>	//gcy
+
+
 using namespace sensors;
 
 RCUpdate::RCUpdate(const Parameters &parameters)
@@ -75,6 +78,12 @@ int RCUpdate::init()
 		return -errno;
 	}
 
+	_aux_sub = orb_subscribe(ORB_ID(aux_ctrl));
+
+	if (_aux_sub < 0) {
+		return -errno;
+	}
+
 	return 0;
 }
 
@@ -82,6 +91,7 @@ void RCUpdate::deinit()
 {
 	orb_unsubscribe(_rc_sub);
 	orb_unsubscribe(_rc_parameter_map_sub);
+	orb_unsubscribe(_aux_sub);
 }
 
 void RCUpdate::update_rc_functions()
@@ -450,14 +460,36 @@ RCUpdate::rc_poll(const ParameterHandles &parameter_handles)
 
 			actuator_group_3.timestamp = rc_input.timestamp_last_signal;
 
+			//gcy
+			bool aux_upadted;
+			orb_check(_aux_sub, &aux_upadted);
+			if (aux_upadted) {
+				aux_ctrl_s auxmsg = {};
+				orb_copy(ORB_ID(aux_ctrl), _aux_sub, &auxmsg);
+				switch(auxmsg.auxnum) {
+					case 1:
+						aux1_latest = auxmsg.content;
+					break;
+					case 2:
+						aux2_latest = auxmsg.content;
+					break;
+					case 3:
+						aux3_latest = auxmsg.content;
+					break;
+					case 4:
+						aux4_latest = auxmsg.content;
+					break;
+				}
+			}
+
 			actuator_group_3.control[0] = manual.y;
 			actuator_group_3.control[1] = manual.x;
 			actuator_group_3.control[2] = manual.r;
 			actuator_group_3.control[3] = manual.z;
-			actuator_group_3.control[4] = manual.flaps;
-			actuator_group_3.control[5] = manual.aux1;
-			actuator_group_3.control[6] = manual.aux2;
-			actuator_group_3.control[7] = manual.aux3;
+			actuator_group_3.control[4] = aux4_latest;
+			actuator_group_3.control[5] = aux1_latest;
+			actuator_group_3.control[6] = aux2_latest;
+			actuator_group_3.control[7] = aux3_latest;
 
 			/* publish actuator_controls_3 topic */
 			orb_publish_auto(ORB_ID(actuator_controls_3), &_actuator_group_3_pub, &actuator_group_3, &instance,
