@@ -78,6 +78,8 @@
 #include <uORB/topics/control_state.h>
 #include <uORB/topics/collision_report.h>
 
+#include <uORB/topics/aux_ctrl.h> 	//gcy
+
 
 #include "mavlink_mission.h"
 #include "mavlink_parameters.h"
@@ -151,6 +153,8 @@ private:
 	void handle_message_serial_control(mavlink_message_t *msg);
 	void handle_message_logging_ack(mavlink_message_t *msg);
 	void handle_message_play_tune(mavlink_message_t *msg);
+
+	void handle_message_aux_ctrl(mavlink_message_t *msg);	//gcy
 
 	void *receive_thread(void *arg);
 
@@ -239,6 +243,9 @@ private:
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
+	
+	orb_advert_t _aux_ctrl_pub;		//gcy
+
 	int _control_mode_sub;
 	uint64_t _global_ref_timestamp;
 	int _hil_frames;

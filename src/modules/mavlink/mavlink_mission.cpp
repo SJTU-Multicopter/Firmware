@@ -1026,8 +1026,8 @@ MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *
 		case NAV_CMD_DO_SET_ROI:
 		case NAV_CMD_ROI:
 		case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
-		case MAV_CMD_DO_SET_CAM_TRIGG_INTERVAL:
-		case MAV_CMD_SET_CAMERA_MODE:
+		// case MAV_CMD_DO_SET_CAM_TRIGG_INTERVAL:	//GCY
+		// case MAV_CMD_SET_CAMERA_MODE:
 		case MAV_CMD_DO_VTOL_TRANSITION:
 		case MAV_CMD_NAV_DELAY:
 		case MAV_CMD_NAV_RETURN_TO_LAUNCH:
