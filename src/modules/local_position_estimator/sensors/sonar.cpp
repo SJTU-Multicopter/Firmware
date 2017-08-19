@@ -10,6 +10,8 @@ static const int 		REQ_SONAR_INIT_COUNT = 10;
 static const uint32_t 	SONAR_TIMEOUT =   5000000; // 2.0 s
 static const float  	SONAR_MAX_INIT_STD =   0.3f; // meters
 
+float sonar_dist[3] = {0.0, 0.0, -1000.0}; //chg
+
 void BlockLocalPositionEstimator::sonarInit()
 {
 	// measure
@@ -60,6 +62,28 @@ int BlockLocalPositionEstimator::sonarMeasure(Vector<float, n_y_sonar> &y)
 	// check for bad data
 	if (d > max_dist || d < min_dist) {
 		return -1;
+	}
+
+	//chg
+
+	if(sonar_dist[2] > -999.f)
+	{
+		float ava = (sonar_dist[0] + sonar_dist[1] + sonar_dist[2]) / 3.f;
+		if(d - ava < 0.1f || d - ava > -0.1f)
+		{
+			sonar_dist[2] = sonar_dist[1];
+			sonar_dist[1] = sonar_dist[0];
+			sonar_dist[0] = d;
+		} 
+		else
+			d = sonar_dist[0];
+		
+	}
+	else
+	{
+		sonar_dist[2] = sonar_dist[1];
+		sonar_dist[1] = sonar_dist[0];
+		sonar_dist[0] = d;
 	}
 
 	// update stats
