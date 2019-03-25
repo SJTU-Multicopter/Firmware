@@ -149,7 +149,8 @@ BlockLocalPositionEstimator::BlockLocalPositionEstimator() :
 	// masks
 	_sensorTimeout(255),
 	_sensorFault(0),
-	_estimatorInitialized(0)
+	_estimatorInitialized(0),
+	fake_vision_z(0)  //CHG
 {
 	// assign distance subs to array
 	_dist_subs[0] = &_sub_dist0;
@@ -230,10 +231,19 @@ void BlockLocalPositionEstimator::update()
 
 			if (s == _sub_lidar || s == _sub_sonar) { continue; }
 
+			//if (i == 1) {
+			//	mavlink_and_console_log_info(&mavlink_log_pub, "lidar timestamp %i", s->get().timestamp);
+			//}
+
 			if (s->updated()) {
 				s->update();
 
 				if (s->get().timestamp == 0) { continue; }
+
+				// if (s->get().type == distance_sensor_s::MAV_DISTANCE_SENSOR_LASER) {
+				// 	double a = s->get().current_distance;
+				// 	mavlink_and_console_log_info(&mavlink_log_pub, "ld: %d", a);
+				// }
 
 				if (s->get().type == \
 				    distance_sensor_s::MAV_DISTANCE_SENSOR_LASER &&

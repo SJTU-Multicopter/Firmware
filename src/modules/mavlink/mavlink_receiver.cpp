@@ -90,6 +90,8 @@
 #include "mavlink_main.h"
 #include "mavlink_command_sender.h"
 
+orb_advert_t mavlink_log_pub_fuckyou = nullptr; //CHANGED
+
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
@@ -800,7 +802,7 @@ MavlinkReceiver::handle_message_distance_sensor(mavlink_message_t *msg)
 	struct distance_sensor_s d;
 	memset(&d, 0, sizeof(d));
 
-	d.timestamp = dist_sensor.time_boot_ms * 1000; /* ms to us */
+	d.timestamp = hrt_absolute_time(); //dist_sensor.time_boot_ms * 1000; /* ms to us */ //
 	d.min_distance = float(dist_sensor.min_distance) * 1e-2f; /* cm to m */
 	d.max_distance = float(dist_sensor.max_distance) * 1e-2f; /* cm to m */
 	d.current_distance = float(dist_sensor.current_distance) * 1e-2f; /* cm to m */
@@ -2555,12 +2557,12 @@ void MavlinkReceiver::print_status()
 uint64_t MavlinkReceiver::sync_stamp(uint64_t usec)
 {
 
-	if (_time_offset != 0) {
-		return usec + (_time_offset / 1000) ;
+//	if (_time_offset != 0) {
+//		return usec + (_time_offset / 1000) ;
 
-	} else {
+//	} else {
 		return hrt_absolute_time();
-	}
+//	}
 }
 
 

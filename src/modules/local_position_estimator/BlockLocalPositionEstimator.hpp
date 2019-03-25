@@ -378,6 +378,8 @@ private:
 	Vector<float, n_u>  _u; // input vector
 	Matrix<float, n_x, n_x>  _P; // state covariance matrix
 
+	float fake_vision_z; //CHG
+
 	matrix::Dcm<float> _R_att;
 	Vector3f _eul;
 

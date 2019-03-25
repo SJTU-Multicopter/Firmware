@@ -262,6 +262,9 @@ private:
 	bool _in_takeoff; /**< flag for smooth velocity setpoint takeoff ramp */
 	float _takeoff_vel_limit; /**< velocity limit value which gets ramped up */
 
+	float _alt_z_i; //CHG
+	float _altitude_error_acc; //CHG
+
 	// counters for reset events on position and velocity states
 	// they are used to identify a reset event
 	uint8_t _z_reset_counter;
@@ -432,11 +435,14 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_acc_z_lp(0),
 	_vel_max_xy(0.0f),
 	_takeoff_vel_limit(0.0f),
+	_alt_z_i(0.01f), //CHG
+	_altitude_error_acc(0.0f),  //CHG
 	_z_reset_counter(0),
 	_xy_reset_counter(0),
 	_vz_reset_counter(0),
 	_vxy_reset_counter(0),
-	_heading_reset_counter(0)
+	_heading_reset_counter(0) 
+
 {
 	// Make the quaternion valid for control state
 	_ctrl_state.q[0] = 1.0f;
@@ -468,6 +474,7 @@ MulticopterPositionControl::MulticopterPositionControl() :
 	_params_handles.thr_hover	= param_find("MPC_THR_HOVER");
 
 	_params_handles.z_p		= param_find("MPC_Z_P");
+
 	_params_handles.z_vel_p		= param_find("MPC_Z_VEL_P");
 	_params_handles.z_vel_i		= param_find("MPC_Z_VEL_I");
 	_params_handles.z_vel_d		= param_find("MPC_Z_VEL_D");
@@ -1687,6 +1694,10 @@ MulticopterPositionControl::calculate_velocity_setpoint(float dt)
 
 	if (_run_alt_control) {
 		if (PX4_ISFINITE(_pos_sp(2))) {
+			
+			// float error_z_temp = _pos_sp(2) - _pos(2); //CHG
+			// _altitude_error_acc += error_z_temp; //CHG
+			// _vel_sp(2) = error_z_temp * _params.pos_p(2) + _altitude_error_acc * _alt_z_i; //CHG
 			_vel_sp(2) = (_pos_sp(2) - _pos(2)) * _params.pos_p(2);
 
 		} else {

@@ -34,6 +34,11 @@ int BlockLocalPositionEstimator::lidarMeasure(Vector<float, n_y_lidar> &y)
 {
 	// measure
 	float d = _sub_lidar->get().current_distance;
+	fake_vision_z = d; //CHG
+	
+	//double gcy_dd = d;
+	//mavlink_and_console_log_info(&mavlink_log_pub, "[lpe] dist,  beta %5.2f", gcy_dd);
+	// mavlink_and_console_log_info(&mavlink_log_pub, "ld: %d", gcy_dd);
 	float eps = 0.01f; // 1 cm
 	float min_dist = _sub_lidar->get().min_distance + eps;
 	float max_dist = _sub_lidar->get().max_distance - eps;

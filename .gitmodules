@@ -37,3 +37,9 @@
 [submodule "src/drivers/gps/devices"]
 	path = src/drivers/gps/devices
 	url = https://github.com/PX4/GpsDrivers.git
+[submodule "src/lib/dspal"]
+	path = src/lib/dspal
+	url = https://github.com/ATLFlight/dspal.git
+[submodule "unittests/googletest"]
+	path = unittests/googletest
+	url = https://github.com/google/googletest.git
